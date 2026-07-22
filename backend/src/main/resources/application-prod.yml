@@ -13,6 +13,8 @@ spring:
       maximum-pool-size: 30
       connection-timeout: 3000
       leak-detection-threshold: 30000
+  liquibase:
+    contexts: prod
   jpa:
     properties:
       hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
