@@ -1,19 +1,19 @@
-# TICKET-ADV006 — ER model (8 entities)
+# TICKET-ADV006 - ER Model (8 Entities)
 
 ```mermaid
 erDiagram
     COUNTERPARTIES ||--o{ TRADES : "executes"
-    INSTRUMENTS    ||--o{ TRADES : "covers"
-    TRADES         ||--o{ SETTLEMENTS : "settles via"
-    TRADES         ||--o{ RECON_BREAKS : "may produce"
-    RECON_JOBS     ||--o{ RECON_BREAKS : "detected by"
-    USERS          ||--o{ AUDIT_LOG : "actor"
-    TRADES         ||--o{ AUDIT_LOG : "audited"
+    INSTRUMENTS ||--o{ TRADES : "covers"
+    TRADES ||--o{ SETTLEMENTS : "settles via"
+    TRADES ||--o{ RECON\_BREAKS : "may produce"
+    RECON\_JOBS ||--o{ RECON\_BREAKS : "detects"
+    USERS ||--o{ RECON\_JOBS : "triggers"
+    USERS ||--o{ AUDIT\_LOG : "actor reference - logical only, no FK"
 
     COUNTERPARTIES {
         bigint id PK
         varchar name
-        char lei_code UK
+        char lei\_code UK
         varchar region
     }
 
@@ -21,75 +21,78 @@ erDiagram
         bigint id PK
         varchar symbol UK
         varchar name
-        varchar asset_class
+        varchar asset\_class
         char currency
         char isin UK
-        jsonb metadata "ADV009"
-    }
-
-    TRADES {
-        bigint id PK
-        varchar trade_ref UK
-        bigint instrument_id FK
-        bigint counterparty_id FK
-        varchar asset_class
-        varchar side
-        numeric quantity
-        numeric price
-        date trade_date "PARTITION KEY (ADV007)"
-        varchar status
-        timestamp deleted_at "ADV067 soft delete"
-        timestamp created_at
-        timestamp modified_at
-    }
-
-    SETTLEMENTS {
-        bigint id PK
-        bigint trade_id FK
-        date settlement_date
-        numeric amount
-        varchar status
-    }
-
-    RECON_BREAKS {
-        bigint id PK
-        bigint trade_id FK
-        varchar discrepancy_type
-        varchar status
-        timestamp detected_at
-        timestamp resolved_at
-        varchar resolution_note
-    }
-
-    RECON_JOBS {
-        bigint id PK
-        varchar job_id UK
-        date from_date
-        date to_date
-        varchar status
-        timestamp started_at
-        timestamp finished_at
-        int trades_processed
-        int breaks_detected
-    }
-
-    AUDIT_LOG {
-        bigint id PK
-        varchar event_id UK
-        varchar trade_ref
-        varchar event_type
-        timestamp event_timestamp
-        varchar actor
-        clob before_state
-        clob after_state
+        jsonb metadata "TICKET-ADV009"
     }
 
     USERS {
         bigint id PK
         varchar email UK
-        varchar password_hash
+        varchar password\_hash
         varchar role
         boolean enabled
-        timestamp created_at
+        timestamp created\_at
+    }
+
+    TRADES {
+        bigint id PK
+        varchar trade\_ref UK
+        bigint instrument\_id FK
+        bigint counterparty\_id FK
+        varchar asset\_class
+        varchar side
+        numeric quantity
+        numeric price
+        date trade\_date "PARTITION KEY (TICKET-ADV007)"
+        varchar status
+        timestamp deleted\_at
+        timestamp created\_at
+        timestamp modified\_at
+    }
+
+    SETTLEMENTS {
+        bigint id PK
+        bigint trade\_id FK
+        date settlement\_date
+        numeric amount
+        varchar status
+    }
+
+    RECON\_JOBS {
+        bigint id PK
+        varchar job\_id UK
+        bigint triggered\_by\_user\_id FK
+        date from\_date
+        date to\_date
+        varchar status
+        timestamp started\_at
+        timestamp finished\_at
+        int trades\_processed
+        int breaks\_detected
+    }
+
+    RECON\_BREAKS {
+        bigint id PK
+        bigint trade\_id FK
+        bigint recon\_job\_id FK
+        varchar discrepancy\_type
+        varchar status
+        timestamp detected\_at
+        timestamp resolved\_at
+        varchar resolution\_note
+    }
+
+    AUDIT\_LOG {
+        bigint id PK
+        varchar event\_id UK
+        varchar trade\_ref
+        varchar event\_type
+        timestamp event\_timestamp
+        varchar changed\_by "NO DATABASE FK - stores user email"
+        jsonb before\_state
+        jsonb after\_state
     }
 ```
+
