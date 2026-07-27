@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- ============================================================================
- TICKET-ADV017 — Seed data (counterparties, instruments, sample trades, users)
- WHAT:    Loads CSV files baked into the JAR.
- HOW:     <loadData> reads from classpath — paths are relative to the
-          changeSet file. CSV headers must match column names.
- WHY:     The student copy ships an empty DB; the trainer copy ships seeded
-          data so demos work the moment the app boots.
- OBSERVE: SELECT count(*) FROM counterparties → 10. trades → 500.
-          users → 4 (admin/trader/viewer/recon analyst).
- ============================================================================
+============================================================================
+TICKET-ADV017 — Deterministic development and test seed data
+
+Loads:
+- 10 counterparties
+- 5 explicit instruments from CSV
+- 45 generated instruments
+- 4 BCrypt-hashed users
+- 500 trades distributed evenly across April through July 2026
+
+All seed changesets are restricted to dev and test contexts and guarded by
+preconditions so restarting the application does not duplicate records.
+============================================================================
 -->
 <databaseChangeLog
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
@@ -17,22 +20,49 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="008-seed-counterparties" author="trainer">
-        <loadData file="data/counterparties.csv" tableName="counterparties"
-                  separator="," relativeToChangelogFile="true">
+    <changeSet id="008-seed-counterparties" author="philemon" context="dev,test">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <and>
+                <tableExists tableName="counterparties"/>
+                <sqlCheck expectedResult="0">
+                    SELECT COUNT(*) FROM counterparties
+                </sqlCheck>
+            </and>
+        </preConditions>
+
+        <loadData
+                file="data/counterparties.csv"
+                tableName="counterparties"
+                separator=","
+                relativeToChangelogFile="true">
             <column name="id" type="NUMERIC"/>
             <column name="name" type="STRING"/>
             <column name="lei_code" type="STRING"/>
             <column name="region" type="STRING"/>
         </loadData>
+
         <rollback>
-            <sql>DELETE FROM counterparties;</sql>
+            <sql>DELETE FROM counterparties WHERE id BETWEEN 1 AND 10;</sql>
         </rollback>
     </changeSet>
 
-    <changeSet id="008-seed-instruments" author="trainer">
-        <loadData file="data/instruments.csv" tableName="instruments"
-                  separator="," relativeToChangelogFile="true">
+    <changeSet id="008-seed-explicit-instruments"
+               author="philemon"
+               context="dev,test">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <and>
+                <tableExists tableName="instruments"/>
+                <sqlCheck expectedResult="0">
+                    SELECT COUNT(*) FROM instruments
+                </sqlCheck>
+            </and>
+        </preConditions>
+
+        <loadData
+                file="data/instruments.csv"
+                tableName="instruments"
+                separator=","
+                relativeToChangelogFile="true">
             <column name="id" type="NUMERIC"/>
             <column name="symbol" type="STRING"/>
             <column name="name" type="STRING"/>
@@ -40,37 +70,176 @@
             <column name="currency" type="STRING"/>
             <column name="isin" type="STRING"/>
         </loadData>
+
         <rollback>
-            <sql>DELETE FROM instruments;</sql>
+            <sql>DELETE FROM instruments WHERE id BETWEEN 1 AND 5;</sql>
         </rollback>
     </changeSet>
 
-    <changeSet id="008-seed-users" author="trainer">
-        <!-- Real BCrypt hashes (cost=10) for admin123 / trader123 / viewer123 / recon123.
-             Generated via: htpasswd -bnBC 10 "" <pw> | tr -d ':\n'
-             Spring Security's BCryptPasswordEncoder accepts both $2a$ and $2y$ prefixes. -->
+    <changeSet id="008-seed-generated-instruments"
+               author="philemon"
+               context="dev,test">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <and>
+                <dbms type="postgresql"/>
+                <tableExists tableName="instruments"/>
+                <sqlCheck expectedResult="5">
+                    SELECT COUNT(*) FROM instruments
+                </sqlCheck>
+            </and>
+        </preConditions>
+
+        <sql splitStatements="true" stripComments="true"><![CDATA[
+            INSERT INTO instruments (
+                id,
+                symbol,
+                name,
+                asset_class,
+                currency,
+                isin
+            )
+            SELECT
+                n,
+                'GEN' || LPAD(n::TEXT, 3, '0'),
+                'Generated Instrument ' || n,
+                CASE n % 4
+                    WHEN 0 THEN 'EQUITY'
+                    WHEN 1 THEN 'FIXED_INCOME'
+                    WHEN 2 THEN 'FX'
+                    ELSE 'DERIVATIVE'
+                END,
+                CASE n % 4
+                    WHEN 0 THEN 'USD'
+                    WHEN 1 THEN 'EUR'
+                    WHEN 2 THEN 'GBP'
+                    ELSE 'JPY'
+                END,
+                'XS' || LPAD(n::TEXT, 10, '0')
+            FROM GENERATE_SERIES(6, 50) AS n;
+
+            SELECT SETVAL(
+                PG_GET_SERIAL_SEQUENCE('instruments', 'id'),
+                (SELECT MAX(id) FROM instruments),
+                true
+            );
+        ]]></sql>
+
+        <rollback>
+            <sql>DELETE FROM instruments WHERE id BETWEEN 6 AND 50;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="008-seed-users" author="philemon" context="dev,test">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <and>
+                <tableExists tableName="users"/>
+                <sqlCheck expectedResult="0">
+                    SELECT COUNT(*) FROM users
+                </sqlCheck>
+            </and>
+        </preConditions>
+
         <insert tableName="users">
             <column name="email" value="admin@db.com"/>
-            <column name="password_hash" value="$2y$10$L9iP3BfsBS2LbVJRfc86TuWnJvP.AohjX3PNLwdtjlZfyB7YSp87C"/>
+            <column name="password_hash"
+                    value="$2y$10$L9iP3BfsBS2LbVJRfc86TuWnJvP.AohjX3PNLwdtjlZfyB7YSp87C"/>
             <column name="role" value="ADMIN"/>
         </insert>
+
         <insert tableName="users">
             <column name="email" value="trader@db.com"/>
-            <column name="password_hash" value="$2y$10$LIpkayi0QDWyVguPtEQbkOATM7PTnMKFDNq47K92TUx2LHTBFQf1i"/>
+            <column name="password_hash"
+                    value="$2y$10$LIpkayi0QDWyVguPtEQbkOATM7PTnMKFDNq47K92TUx2LHTBFQf1i"/>
             <column name="role" value="TRADER"/>
         </insert>
+
         <insert tableName="users">
             <column name="email" value="viewer@db.com"/>
-            <column name="password_hash" value="$2y$10$gC8J5Tzr15p4V6BgbbEFGOEb4VWM4YUOAdKEeyFlXtEvYolYblCVC"/>
+            <column name="password_hash"
+                    value="$2y$10$gC8J5Tzr15p4V6BgbbEFGOEb4VWM4YUOAdKEeyFlXtEvYolYblCVC"/>
             <column name="role" value="VIEWER"/>
         </insert>
+
         <insert tableName="users">
             <column name="email" value="recon@db.com"/>
-            <column name="password_hash" value="$2y$10$UVYhlvPX38zSdPhY6bz4ee453bh6gXp9guhAfV5IU2SjcWPm0eWKq"/>
+            <column name="password_hash"
+                    value="$2y$10$UVYhlvPX38zSdPhY6bz4ee453bh6gXp9guhAfV5IU2SjcWPm0eWKq"/>
             <column name="role" value="RECON_ANALYST"/>
         </insert>
+
         <rollback>
-            <sql>DELETE FROM users;</sql>
+            <sql>
+                DELETE FROM users
+                WHERE email IN (
+                    'admin@db.com',
+                    'trader@db.com',
+                    'viewer@db.com',
+                    'recon@db.com'
+                );
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="008-seed-trades" author="philemon" context="dev,test">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <and>
+                <dbms type="postgresql"/>
+                <tableExists tableName="trades"/>
+                <sqlCheck expectedResult="0">
+                    SELECT COUNT(*) FROM trades
+                </sqlCheck>
+                <sqlCheck expectedResult="10">
+                    SELECT COUNT(*) FROM counterparties
+                </sqlCheck>
+                <sqlCheck expectedResult="50">
+                    SELECT COUNT(*) FROM instruments
+                </sqlCheck>
+            </and>
+        </preConditions>
+
+        <sql splitStatements="true" stripComments="true"><![CDATA[
+            INSERT INTO trades (
+                trade_ref,
+                instrument_id,
+                counterparty_id,
+                asset_class,
+                side,
+                quantity,
+                price,
+                trade_date,
+                status
+            )
+            SELECT
+                'RX-2026-' || LPAD(n::TEXT, 6, '0'),
+                1 + ((n - 1) % 50),
+                1 + ((n - 1) % 10),
+                i.asset_class,
+                CASE
+                    WHEN n % 2 = 0 THEN 'BUY'
+                    ELSE 'SELL'
+                END,
+                100 + (n % 1000),
+                10.25 + (n % 200),
+                MAKE_DATE(
+                    2026,
+                    4 + ((n - 1) % 4),
+                    1 + (((n - 1) / 4) % 28)
+                ),
+                CASE n % 3
+                    WHEN 0 THEN 'MATCHED'
+                    WHEN 1 THEN 'PENDING'
+                    ELSE 'BREAK'
+                END
+            FROM GENERATE_SERIES(1, 500) AS n
+            JOIN instruments AS i
+              ON i.id = 1 + ((n - 1) % 50);
+        ]]></sql>
+
+        <rollback>
+            <sql>
+                DELETE FROM trades
+                WHERE trade_ref LIKE 'RX-2026-%';
+            </sql>
         </rollback>
     </changeSet>
 
