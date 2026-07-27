@@ -20,7 +20,13 @@
 
     <!-- ADV006 — counterparties -->
     <changeSet id="002-create-counterparties" author="trainer">
-        <createTable tableName="counterparties">
+           <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="counterparties"/>
+            </not>
+        </preConditions>
+
+    <createTable tableName="counterparties">
             <column name="id" type="BIGINT" autoIncrement="true">
                 <constraints primaryKey="true"/>
             </column>
@@ -36,7 +42,12 @@
 
     <!-- ADV006 — instruments -->
     <changeSet id="002-create-instruments" author="trainer">
-        <createTable tableName="instruments">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="instruments"/>
+            </not>
+        </preConditions>
+    <createTable tableName="instruments">
             <column name="id" type="BIGINT" autoIncrement="true">
                 <constraints primaryKey="true"/>
             </column>
@@ -53,7 +64,12 @@
 
     <!-- ADV006 — trades (non-partitioned base; 004 attaches partitions on Postgres) -->
     <changeSet id="002-create-trades" author="trainer">
-        <createTable tableName="trades">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="trades"/>
+            </not>
+        </preConditions>
+    <createTable tableName="trades">
             <column name="id" type="BIGINT" autoIncrement="true">
                 <constraints primaryKey="true"/>
             </column>
@@ -89,7 +105,12 @@
 
     <!-- ADV006 — settlements -->
     <changeSet id="002-create-settlements" author="trainer">
-        <createTable tableName="settlements">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="settlements"/>
+            </not>
+        </preConditions>
+    <createTable tableName="settlements">
             <column name="id" type="BIGINT" autoIncrement="true">
                 <constraints primaryKey="true"/>
             </column>
