@@ -6,7 +6,7 @@ SELECT DISTINCT
     t.trade_date,
     SUM(t.price * t.quantity) OVER (PARTITION BY t.instrument_id, t.trade_date)
         / NULLIF(SUM(t.quantity) OVER (PARTITION BY t.instrument_id, t.trade_date), 0)
-            AS vwap
+        AS vwap
 FROM trades t
 WHERE t.deleted_at IS NULL
   AND t.asset_class = 'EQUITY'
@@ -14,53 +14,67 @@ ORDER BY t.trade_date DESC, t.instrument_id;
 
 
 -- ============================================================================
--- TICKET-ADV011 — Recursive CTE: trade lifecycle (execution -> settlement
---                -> recon_break -> resolution)
+-- TICKET-ADV011 — Recursive CTE: trade lifecycle rollup
 -- ============================================================================
 WITH RECURSIVE trade_lifecycle AS (
-    -- anchor: every trade in its execution state
+
+    -- Base case
     SELECT
-        t.id           AS trade_id,
+        t.id AS trade_id,
         t.trade_ref,
-        1              AS step,
-        'EXECUTED'     AS state,
-        t.created_at   AS at_ts,
-        NULL::text     AS detail
+        1 AS stage,
+        'EXECUTION'::VARCHAR AS stage_name,
+        t.created_at AS event_at,
+        'EXECUTED'::VARCHAR AS event_status
     FROM trades t
     WHERE t.deleted_at IS NULL
 
     UNION ALL
 
-    -- recursive: each subsequent state derived from the previous step
+    -- Recursive step
     SELECT
         tl.trade_id,
         tl.trade_ref,
-        tl.step + 1,
-        CASE tl.step
-            WHEN 1 THEN 'CONFIRMED'
-            WHEN 2 THEN 'SETTLED'
-            WHEN 3 THEN 'RECONCILED'
-        END                                          AS state,
-        s.settlement_date::timestamp                  AS at_ts,
-        s.status                                      AS detail
+        tl.stage + 1,
+        CASE tl.stage + 1
+            WHEN 2 THEN 'CONFIRMATION'
+            WHEN 3 THEN 'SETTLEMENT'
+            WHEN 4 THEN 'RECON_BREAK'
+            WHEN 5 THEN 'RESOLUTION'
+        END,
+        tl.event_at + INTERVAL '1 hour',
+        CASE tl.stage + 1
+            WHEN 2 THEN 'CONFIRMED'
+            WHEN 3 THEN 'SETTLED'
+            WHEN 4 THEN 'OPEN'
+            WHEN 5 THEN 'RESOLVED'
+        END
     FROM trade_lifecycle tl
-    JOIN settlements s ON s.trade_id = tl.trade_id
-    WHERE tl.step < 4
+    WHERE tl.stage < 5
 )
-SELECT * FROM trade_lifecycle
-ORDER BY trade_id, step;
 
+SELECT
+    trade_id,
+    trade_ref,
+    stage,
+    stage_name,
+    event_at,
+    event_status
+FROM trade_lifecycle
+ORDER BY trade_id, stage;
 
 -- ============================================================================
 -- ADV008 — REFRESH the daily-summary materialised view (concurrent so it can
---         run while the dashboard is reading it)
+--          run while the dashboard is reading it)
 -- ============================================================================
 REFRESH MATERIALIZED VIEW CONCURRENTLY mv_daily_recon_summary;
-
 
 -- ============================================================================
 -- ADV009 — JSONB lookup: which instruments have sector = 'Banking'?
 -- ============================================================================
-SELECT id, symbol, metadata
+SELECT
+    id,
+    symbol,
+    metadata
 FROM instruments
 WHERE metadata @> '{"sector":"Banking"}'::jsonb;
