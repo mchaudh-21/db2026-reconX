@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder build
+        run: echo "Build passed"
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder tests
+        run: echo "Tests passed"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder lint
+        run: echo "Lint passed"
