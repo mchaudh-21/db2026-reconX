@@ -105,7 +105,7 @@ public final class FXTrade implements TradeType {
 
     @Override
     public String toString() {
-	// NOTE: counterpartyId is deliberately omitted to prevent PII leakage.
+    // NOTE: counterpartyId is deliberately omitted to prevent PII leakage.
         return "FXTrade{tradeRef=%s, ccy1=%s, ccy2=%s, notionalCcy1=%s, fxRate=%s}"
             .formatted(
                     tradeRef.value(),

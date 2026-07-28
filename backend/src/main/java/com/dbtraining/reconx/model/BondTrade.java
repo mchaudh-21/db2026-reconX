@@ -105,8 +105,8 @@ public final class BondTrade implements TradeType {
 
     @Override
     public String toString() {
-   	// NOTE: counterpartyId is deliberately omitted to prevent PII leakage.
-    	return "BondTrade{tradeRef=%s, isin='%s', couponRate=%s, faceValue=%s, currency=%s, maturityDate=%s}"
+       // NOTE: counterpartyId is deliberately omitted to prevent PII leakage.
+        return "BondTrade{tradeRef=%s, isin='%s', couponRate=%s, faceValue=%s, currency=%s, maturityDate=%s}"
             .formatted(
                     tradeRef.value(),
                     isin,
