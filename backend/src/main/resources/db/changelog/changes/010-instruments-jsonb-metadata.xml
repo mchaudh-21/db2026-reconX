@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="010-instruments-jsonb-metadata" author="nehack18">
+        <preConditions onFail="MARK_RAN">
+            <dbms type="postgresql"/>
+        </preConditions>
+
+        <sql>
+            ALTER TABLE instruments
+            ADD COLUMN metadata JSONB NOT NULL DEFAULT '{}'::JSONB;
+
+            CREATE INDEX idx_instruments_metadata
+            ON instruments
+            USING GIN (metadata jsonb_path_ops);
+        </sql>
+
+        <rollback>
+            <sql>
+                DROP INDEX IF EXISTS idx_instruments_metadata;
+                ALTER TABLE instruments DROP COLUMN metadata;
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
