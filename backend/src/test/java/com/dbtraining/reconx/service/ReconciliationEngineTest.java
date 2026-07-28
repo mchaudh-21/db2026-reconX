@@ -4,6 +4,9 @@ import com.dbtraining.reconx.dto.ReconResult;
 import com.dbtraining.reconx.model.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -42,23 +45,58 @@ class ReconciliationEngineTest {
                 .isEqualTo(ReconResult.Status.MATCHED);
     }
 
-    @Test
-    void testReconcile_priceTolerance_withinThreshold() {
-        // TODO(TICKET-ADV041): prices 100.00 vs 100.50
-        // + PRICE_TOLERANCE_1PCT rule -> status MATCHED.
-        org.junit.jupiter.api.Assertions.fail(
-                "TICKET-ADV041 not implemented yet"
-        );
-    }
+        @ParameterizedTest(
+                name = "price diff {0} stays within 1% tolerance -> MATCHED"
+        )
+        @ValueSource(strings = {"0.10", "0.50", "0.99"})
+        void testReconcile_priceTolerance_withinThreshold(String diff) {
+        BigDecimal basePrice = new BigDecimal("100.00");
 
-    @Test
-    void testReconcile_missingCounterpartyTrade_returnsBreak() {
-        // TODO(TICKET-ADV042): internal trade with no external counterpart
-        // -> status BREAK, discrepancyType = "MISSING_EXTERNAL".
-        org.junit.jupiter.api.Assertions.fail(
-                "TICKET-ADV042 not implemented yet"
+        EquityTrade internal = equity(
+                "EQU-20260603-0002",
+                basePrice.toPlainString(),
+                "1000"
         );
-    }
+
+        EquityTrade external = equity(
+                "EQU-20260603-0002",
+                basePrice.add(new BigDecimal(diff)).toPlainString(),
+                "1000"
+        );
+
+        List<ReconResult> out = engine.reconcile(
+                List.of(internal),
+                List.of(external),
+                ReconciliationRule.PRICE_TOLERANCE_1PCT
+        );
+
+        assertThat(out.get(0).status())
+                .isEqualTo(ReconResult.Status.MATCHED);
+        }
+
+        @Test
+        void testReconcile_missingCounterpartyTrade_returnsBreak() {
+        // Given
+        EquityTrade internal = equity(
+                "EQU-20260603-0003",
+                "100.00",
+                "1000"
+        );
+
+        // When
+        List<ReconResult> out = engine.reconcile(
+                List.of(internal),
+                List.of(),
+                ReconciliationRule.EXACT
+        );
+
+        // Then
+        assertThat(out.get(0).status())
+                .isEqualTo(ReconResult.Status.BREAK);
+
+        assertThat(out.get(0).discrepancyType())
+                .isEqualTo("MISSING_EXTERNAL");
+        }
 
     @Test
     @DisplayName("Empty internal trades return an empty reconciliation result")

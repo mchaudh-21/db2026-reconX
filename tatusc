@@ -1,0 +1,35 @@
+[1mdiff --git a/backend/src/main/resources/db/changelog/changes/003-jsonb.xml b/backend/src/main/resources/db/changelog/changes/003-jsonb.xml[m
+[1mindex a853921..8c4a5ad 100644[m
+[1m--- a/backend/src/main/resources/db/changelog/changes/003-jsonb.xml[m
+[1m+++ b/backend/src/main/resources/db/changelog/changes/003-jsonb.xml[m
+[36m@@ -18,15 +18,25 @@[m
+         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog[m
+                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">[m
+ [m
+[31m-    <changeSet id="003-jsonb-on-instruments" author="trainer">[m
+[32m+[m[32m    <changeSet id="003-jsonb-on-instruments" author="nehack18">[m
+         <preConditions onFail="MARK_RAN">[m
+             <dbms type="postgresql"/>[m
+         </preConditions>[m
+[31m-        <sql>ALTER TABLE instruments ADD COLUMN metadata JSONB DEFAULT '{}'::JSONB NOT NULL;</sql>[m
+[31m-        <sql>CREATE INDEX idx_instruments_metadata_gin ON instruments USING GIN (metadata jsonb_path_ops);</sql>[m
+[32m+[m
+[32m+[m[32m        <sql>[m
+[32m+[m[32m            ALTER TABLE instruments[m
+[32m+[m[32m            ADD COLUMN metadata JSONB NOT NULL DEFAULT '{}'::JSONB;[m
+[32m+[m
+[32m+[m[32m            CREATE INDEX idx_instruments_metadata[m
+[32m+[m[32m            ON instruments[m
+[32m+[m[32m            USING GIN (metadata jsonb_path_ops);[m
+[32m+[m[32m        </sql>[m
+[32m+[m
+         <rollback>[m
+[31m-            <sql>DROP INDEX IF EXISTS idx_instruments_metadata_gin;</sql>[m
+[31m-            <sql>ALTER TABLE instruments DROP COLUMN metadata;</sql>[m
+[32m+[m[32m            <sql>[m
+[32m+[m[32m                DROP INDEX IF EXISTS idx_instruments_metadata;[m
+[32m+[m[32m                ALTER TABLE instruments DROP COLUMN metadata;[m
+[32m+[m[32m            </sql>[m
+         </rollback>[m
+     </changeSet>[m
+ [m

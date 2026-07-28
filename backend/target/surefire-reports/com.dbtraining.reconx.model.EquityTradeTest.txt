@@ -1,0 +1,13 @@
+-------------------------------------------------------------------------------
+Test set: com.dbtraining.reconx.model.EquityTradeTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.082 s <<< FAILURE! -- in com.dbtraining.reconx.model.EquityTradeTest
+com.dbtraining.reconx.model.EquityTradeTest.equality_byTradeRef -- Time elapsed: 0.042 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: TICKET-ADV028 not implemented yet
+	at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)
+	at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)
+	at com.dbtraining.reconx.model.EquityTradeTest.equality_byTradeRef(EquityTradeTest.java:31)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+
