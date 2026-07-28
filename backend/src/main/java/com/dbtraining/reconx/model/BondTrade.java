@@ -105,8 +105,16 @@ public final class BondTrade implements TradeType {
 
     @Override
     public String toString() {
-        // TODO(TICKET-ADV030): produce a PII-safe representation.
-        throw new UnsupportedOperationException("TICKET-ADV030");
+   	// NOTE: counterpartyId is deliberately omitted to prevent PII leakage.
+    	return "BondTrade{tradeRef=%s, isin='%s', couponRate=%s, faceValue=%s, currency=%s, maturityDate=%s}"
+            .formatted(
+                    tradeRef.value(),
+                    isin,
+                    couponRate.toPlainString(),
+                    faceValue.toPlainString(),
+                    currency.getCurrencyCode(),
+                    maturityDate
+            );
     }
 
     public static final class Builder {

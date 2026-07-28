@@ -105,8 +105,15 @@ public final class FXTrade implements TradeType {
 
     @Override
     public String toString() {
-        // TODO(TICKET-ADV030): produce a PII-safe representation.
-        throw new UnsupportedOperationException("TICKET-ADV030");
+	// NOTE: counterpartyId is deliberately omitted to prevent PII leakage.
+        return "FXTrade{tradeRef=%s, ccy1=%s, ccy2=%s, notionalCcy1=%s, fxRate=%s}"
+            .formatted(
+                    tradeRef.value(),
+                    ccy1.getCurrencyCode(),
+                    ccy2.getCurrencyCode(),
+                    notionalCcy1.toPlainString(),
+                    fxRate.toPlainString()
+            );
     }
 
     public static final class Builder {
