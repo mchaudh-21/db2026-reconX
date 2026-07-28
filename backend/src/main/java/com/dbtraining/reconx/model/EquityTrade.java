@@ -105,8 +105,17 @@ public final class EquityTrade implements TradeType {
 
     @Override
     public String toString() {
-        // TODO(TICKET-ADV030): produce a PII-safe representation.
-        throw new UnsupportedOperationException("TICKET-ADV030");
+        // NOTE: counterpartyId is deliberately omitted to prevent PII leakage.
+    return "EquityTrade{tradeRef=%s, instrumentSymbol='%s', quantity=%s, price=%s, currency=%s, side=%s}"
+            .formatted(
+                    tradeRef.value(),
+                    instrumentSymbol,
+                    quantity.toPlainString(),
+                    price.toPlainString(),
+                    currency.getCurrencyCode(),
+                    side
+            );
+
     }
 
     /** Fluent builder. Required fields and invariants are checked in build(). */
