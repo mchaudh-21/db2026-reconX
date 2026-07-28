@@ -2,44 +2,120 @@ package com.dbtraining.reconx.service;
 
 import com.dbtraining.reconx.dto.ReconResult;
 import com.dbtraining.reconx.model.*;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * TICKET-ADV040 / ADV041 / ADV042 — TDD: write the test FIRST, then the impl.
+ * TICKET-ADV037 / ADV040 / ADV041 / ADV042 — TDD: write the test FIRST,
+ * then the implementation.
  */
 class ReconciliationEngineTest {
 
     private final ReconciliationEngine engine = new ReconciliationEngine();
 
     @Test
+    @DisplayName("Exact matching trades return a matched reconciliation result")
     void testReconcile_exactMatch_returnsMatched() {
-        // TODO(TICKET-ADV040): two identical EquityTrades + EXACT rule -> one ReconResult with status MATCHED.
-        org.junit.jupiter.api.Assertions.fail("TICKET-ADV040 not implemented yet");
+        // given
+        EquityTrade internalTrade =
+                equity("EQT-20260603-0001", "100.00", "10");
+        EquityTrade externalTrade =
+                equity("EQT-20260603-0001", "100.00", "10");
+
+        // when
+        List<ReconResult> out = engine.reconcile(
+                List.of(internalTrade),
+                List.of(externalTrade),
+                ReconciliationRule.EXACT
+        );
+
+        // then
+        assertThat(out).hasSize(1);
+        assertThat(out.getFirst().status())
+                .isEqualTo(ReconResult.Status.MATCHED);
     }
 
     @Test
     void testReconcile_priceTolerance_withinThreshold() {
-        // TODO(TICKET-ADV041): prices 100.00 vs 100.50 + PRICE_TOLERANCE_1PCT rule -> status MATCHED.
-        org.junit.jupiter.api.Assertions.fail("TICKET-ADV041 not implemented yet");
+        // TODO(TICKET-ADV041): prices 100.00 vs 100.50
+        // + PRICE_TOLERANCE_1PCT rule -> status MATCHED.
+        org.junit.jupiter.api.Assertions.fail(
+                "TICKET-ADV041 not implemented yet"
+        );
     }
 
     @Test
     void testReconcile_missingCounterpartyTrade_returnsBreak() {
-        // TODO(TICKET-ADV042): internal trade with no external counterpart -> status BREAK,
-        //                     discrepancyType = "MISSING_EXTERNAL".
-        org.junit.jupiter.api.Assertions.fail("TICKET-ADV042 not implemented yet");
+        // TODO(TICKET-ADV042): internal trade with no external counterpart
+        // -> status BREAK, discrepancyType = "MISSING_EXTERNAL".
+        org.junit.jupiter.api.Assertions.fail(
+                "TICKET-ADV042 not implemented yet"
+        );
     }
 
     @Test
+    @DisplayName("Empty internal trades return an empty reconciliation result")
     void testReconcile_emptyInternal_returnsEmpty() {
-        // TODO(TICKET-ADV040): empty internal + empty external -> reconcile returns an empty list.
-        org.junit.jupiter.api.Assertions.fail("TICKET-ADV040 not implemented yet");
+        // given
+        List<TradeType> internal = List.of();
+        List<TradeType> external = List.of();
+
+        // when
+        List<ReconResult> out = engine.reconcile(
+                internal,
+                external,
+                ReconciliationRule.EXACT
+        );
+
+        // then
+        assertThat(out).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Trades are reconciled concurrently by counterparty")
+    void testReconcileByCounterparty_returnsCombinedResults() {
+        // given
+        EquityTrade internalOne =
+                equity("EQT-20260603-0001", "100.00", "10");
+        EquityTrade externalOne =
+                equity("EQT-20260603-0001", "100.00", "10");
+
+        EquityTrade internalTwo =
+                equity("EQT-20260603-0002", "200.00", "20");
+        EquityTrade externalTwo =
+                equity("EQT-20260603-0002", "200.00", "20");
+
+        Map<Long, List<TradeType>> internalByCp = Map.of(
+                1L, List.of(internalOne),
+                2L, List.of(internalTwo)
+        );
+
+        Map<Long, List<TradeType>> externalByCp = Map.of(
+                1L, List.of(externalOne),
+                2L, List.of(externalTwo)
+        );
+
+        // when
+        List<ReconResult> out = engine.reconcileByCounterparty(
+                internalByCp,
+                externalByCp,
+                ReconciliationRule.EXACT
+        ).join();
+
+        // then
+        assertThat(out)
+                .hasSize(2)
+                .allSatisfy(result ->
+                        assertThat(result.status())
+                                .isEqualTo(ReconResult.Status.MATCHED)
+                );
     }
 
     private EquityTrade equity(String ref, String price, String qty) {
@@ -48,7 +124,8 @@ class ReconciliationEngineTest {
                 .instrumentSymbol("SAP.DE")
                 .price(new BigDecimal(price))
                 .quantity(new BigDecimal(qty))
-                .currency("EUR").side(Side.BUY)
+                .currency("EUR")
+                .side(Side.BUY)
                 .tradeDate(LocalDate.of(2026, 6, 3))
                 .counterpartyId(1L)
                 .build();
