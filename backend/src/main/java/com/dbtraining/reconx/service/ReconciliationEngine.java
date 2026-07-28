@@ -11,10 +11,16 @@ import io.micrometer.core.annotation.Timed;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -23,6 +29,20 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ReconciliationEngine {
+
+    private static final AtomicInteger THREAD_NUMBER = new AtomicInteger(1);
+
+    private final ExecutorService executor =
+            Executors.newFixedThreadPool(
+                    Math.max(
+                            2,
+                            Math.min(
+                                    4,
+                                    Runtime.getRuntime().availableProcessors()
+                            )
+                    ),
+                    namedThreadFactory()
+            );
 
     /**
      * TICKET-ADV033 — Index the external feed once, then reconcile each
@@ -45,7 +65,8 @@ public class ReconciliationEngine {
 
         Objects.requireNonNull(rule, "rule");
 
-        List<TradeType> safeExternal = external == null ? List.of() : external;
+        List<TradeType> safeExternal =
+                external == null ? List.of() : external;
 
         Map<String, TradeType> externalByRef = safeExternal.stream()
                 .collect(Collectors.toMap(
@@ -57,22 +78,65 @@ public class ReconciliationEngine {
         return internal.parallelStream()
                 .map(internalTrade -> matchOne(
                         internalTrade,
-                        externalByRef.get(internalTrade.tradeRef().value()),
+                        externalByRef.get(
+                                internalTrade.tradeRef().value()
+                        ),
                         rule
                 ))
                 .toList();
     }
 
     /**
-     * TICKET-ADV037 belongs to the teammate assigned parallel reconciliation.
-     * It intentionally remains unimplemented on this ADV033–ADV036 branch.
+     * TICKET-ADV037 — Reconcile each counterparty concurrently using an
+     * explicitly owned, bounded executor.
      */
     public CompletableFuture<List<ReconResult>> reconcileByCounterparty(
             Map<Long, List<TradeType>> internalByCp,
             Map<Long, List<TradeType>> externalByCp,
             ReconciliationRule rule
     ) {
-        throw new UnsupportedOperationException("TICKET-ADV037");
+        Objects.requireNonNull(rule, "rule");
+
+        Map<Long, List<TradeType>> safeInternal =
+                internalByCp == null ? Map.of() : internalByCp;
+
+        Map<Long, List<TradeType>> safeExternal =
+                externalByCp == null ? Map.of() : externalByCp;
+
+        Set<Long> counterpartyIds = new HashSet<>();
+        counterpartyIds.addAll(safeInternal.keySet());
+        counterpartyIds.addAll(safeExternal.keySet());
+
+        List<CompletableFuture<List<ReconResult>>> futures =
+                counterpartyIds.stream()
+                        .map(counterpartyId ->
+                                CompletableFuture.supplyAsync(
+                                        () -> reconcile(
+                                                safeInternal.getOrDefault(
+                                                        counterpartyId,
+                                                        List.of()
+                                                ),
+                                                safeExternal.getOrDefault(
+                                                        counterpartyId,
+                                                        List.of()
+                                                ),
+                                                rule
+                                        ),
+                                        executor
+                                )
+                        )
+                        .toList();
+
+        CompletableFuture<Void> allCompleted =
+                CompletableFuture.allOf(
+                        futures.toArray(CompletableFuture[]::new)
+                );
+
+        return allCompleted.thenApply(ignored ->
+                futures.stream()
+                        .flatMap(future -> future.join().stream())
+                        .toList()
+        );
     }
 
     private ReconResult matchOne(
@@ -120,13 +184,44 @@ public class ReconciliationEngine {
     private BigDecimal[] priceQty(TradeType trade) {
         return switch (trade) {
             case EquityTrade equity ->
-                    new BigDecimal[]{equity.price(), equity.quantity()};
+                    new BigDecimal[]{
+                            equity.price(),
+                            equity.quantity()
+                    };
             case FXTrade fx ->
-                    new BigDecimal[]{fx.fxRate(), fx.notionalCcy1()};
+                    new BigDecimal[]{
+                            fx.fxRate(),
+                            fx.notionalCcy1()
+                    };
             case BondTrade bond ->
-                    new BigDecimal[]{bond.couponRate(), bond.faceValue()};
+                    new BigDecimal[]{
+                            bond.couponRate(),
+                            bond.faceValue()
+                    };
             case DerivativeTrade derivative ->
-                    new BigDecimal[]{derivative.strike(), derivative.quantity()};
+                    new BigDecimal[]{
+                            derivative.strike(),
+                            derivative.quantity()
+                    };
+        };
+    }
+
+    /**
+     * Stops the executor owned by this reconciliation engine.
+     */
+    public void shutdown() {
+        executor.shutdown();
+    }
+
+    private static ThreadFactory namedThreadFactory() {
+        return task -> {
+            Thread thread = new Thread(
+                    task,
+                    "recon-counterparty-"
+                            + THREAD_NUMBER.getAndIncrement()
+            );
+            thread.setDaemon(true);
+            return thread;
         };
     }
 }
