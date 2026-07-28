@@ -113,8 +113,18 @@ public final class DerivativeTrade implements TradeType {
 
     @Override
     public String toString() {
-        // TODO(TICKET-ADV030): "DerivativeTrade[ref=..., TYPE UNDERLYING on date, strike=... CCY, qty=..., expiry=..., side=...]"
-        throw new UnsupportedOperationException("TICKET-ADV030");
+       // NOTE: counterpartyId is deliberately omitted to prevent PII leakage.
+        return "DerivativeTrade{tradeRef=%s, underlying='%s', strike=%s, quantity=%s, currency=%s, side=%s, expiry=%s, optionType=%s}"
+            .formatted(
+                    tradeRef.value(),
+                    underlying,
+                    strike.toPlainString(),
+                    quantity.toPlainString(),
+                    currency.getCurrencyCode(),
+                    side,
+                    expiry,
+                    optionType
+            );
     }
 
     public static final class Builder {
