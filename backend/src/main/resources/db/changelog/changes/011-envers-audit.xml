@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="011-create-envers-revinfo" author="david">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="revinfo"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="revinfo">
+            <column name="rev" type="INT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="revtstmp" type="BIGINT"/>
+        </createTable>
+
+        <rollback>
+            <dropTable tableName="revinfo"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="011-create-trades-aud" author="david">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="trades_aud"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="trades_aud">
+            <column name="id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rev" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revtype" type="SMALLINT"/>
+            <column name="trade_ref" type="VARCHAR(30)"/>
+            <column name="instrument_id" type="BIGINT"/>
+            <column name="counterparty_id" type="BIGINT"/>
+            <column name="asset_class" type="VARCHAR(20)"/>
+            <column name="side" type="VARCHAR(4)"/>
+            <column name="quantity" type="NUMERIC(18,4)"/>
+            <column name="price" type="NUMERIC(18,4)"/>
+            <column name="trade_date" type="DATE"/>
+            <column name="status" type="VARCHAR(20)"/>
+            <column name="deleted_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="modified_at" type="TIMESTAMP"/>
+        </createTable>
+
+        <addPrimaryKey
+                tableName="trades_aud"
+                columnNames="id,rev"
+                constraintName="pk_trades_aud"/>
+
+        <addForeignKeyConstraint
+                baseTableName="trades_aud"
+                baseColumnNames="rev"
+                referencedTableName="revinfo"
+                referencedColumnNames="rev"
+                constraintName="fk_trades_aud_rev"/>
+
+        <rollback>
+            <dropTable tableName="trades_aud"/>
+        </rollback>
+    </changeSet>
+
+    <!--
+      H2 reports Liquibase CLOB columns as Types.CLOB, while the existing
+      AuditLog entity maps these fields as text/Types.VARCHAR.
+      PostgreSQL is left unchanged.
+    -->
+    <changeSet id="011-h2-audit-log-text-compat" author="david">
+        <preConditions onFail="HALT">
+            <dbms type="h2"/>
+        </preConditions>
+
+        <modifyDataType
+                tableName="audit_log"
+                columnName="before_state"
+                newDataType="VARCHAR(1000000)"/>
+
+        <modifyDataType
+                tableName="audit_log"
+                columnName="after_state"
+                newDataType="VARCHAR(1000000)"/>
+
+        <rollback>
+            <modifyDataType
+                    tableName="audit_log"
+                    columnName="before_state"
+                    newDataType="CLOB"/>
+            <modifyDataType
+                    tableName="audit_log"
+                    columnName="after_state"
+                    newDataType="CLOB"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

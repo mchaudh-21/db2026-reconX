@@ -1,6 +1,7 @@
 package com.dbtraining.reconx.repository;
 
 import com.dbtraining.reconx.repository.entity.Trade;
+import com.dbtraining.reconx.repository.entity.TradeStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,11 +13,8 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 /**
- * ============================================================================
- * TICKET-ADV055 — Custom JPQL filter query
- * TICKET-ADV056 — Specification-based dynamic queries (JpaSpecificationExecutor)
- * TICKET-ADV057 — Pageable / Page<T> for paginated list endpoints
- * ============================================================================
+ * Trade repository. Typed status parameters preserve EnumType.STRING while
+ * String compatibility methods keep existing controller/service boundaries stable.
  */
 public interface TradeRepository
         extends JpaRepository<Trade, Long>, JpaSpecificationExecutor<Trade> {
@@ -28,10 +26,30 @@ public interface TradeRepository
         WHERE t.tradeDate BETWEEN :from AND :to
           AND (:status IS NULL OR t.status = :status)
         """)
-    Page<Trade> findByFilters(@Param("from") LocalDate from,
-                              @Param("to") LocalDate to,
-                              @Param("status") String status,
-                              Pageable pageable);
+    Page<Trade> findByFilters(
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
+            @Param("status") TradeStatus status,
+            Pageable pageable
+    );
 
-    long countByStatus(String status);
+    default Page<Trade> findByFilters(
+            LocalDate from,
+            LocalDate to,
+            String status,
+            Pageable pageable
+    ) {
+        return findByFilters(
+                from,
+                to,
+                status == null ? null : TradeStatus.valueOf(status.trim().toUpperCase()),
+                pageable
+        );
+    }
+
+    long countByStatus(TradeStatus status);
+
+    default long countByStatus(String status) {
+        return countByStatus(TradeStatus.valueOf(status.trim().toUpperCase()));
+    }
 }
