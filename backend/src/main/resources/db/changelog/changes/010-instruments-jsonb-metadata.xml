@@ -1,31 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <databaseChangeLog
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="010-instruments-jsonb-metadata" author="nehack18">
+    <!-- PostgreSQL metadata is already created by 003-jsonb.xml.
+         This change set supplies the equivalent column for H2 dev. -->
+    <changeSet id="010-instruments-jsonb-metadata-h2" author="david">
         <preConditions onFail="MARK_RAN">
-            <dbms type="postgresql"/>
+            <dbms type="h2"/>
+            <not>
+                <columnExists tableName="instruments" columnName="metadata"/>
+            </not>
         </preConditions>
 
-        <sql>
-            ALTER TABLE instruments
-            ADD COLUMN metadata JSONB NOT NULL DEFAULT '{}'::JSONB;
-
-            CREATE INDEX idx_instruments_metadata
-            ON instruments
-            USING GIN (metadata jsonb_path_ops);
-        </sql>
+        <addColumn tableName="instruments">
+            <column name="metadata" type="JSONB" defaultValue="{}">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
 
         <rollback>
-            <sql>
-                DROP INDEX IF EXISTS idx_instruments_metadata;
-                ALTER TABLE instruments DROP COLUMN metadata;
-            </sql>
+            <dropColumn tableName="instruments" columnName="metadata"/>
         </rollback>
     </changeSet>
-
 </databaseChangeLog>

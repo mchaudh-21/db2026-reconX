@@ -1,7 +1,21 @@
 package com.dbtraining.reconx.repository.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.RelationTargetAuditMode;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -9,30 +23,21 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Objects;
 
 /**
- * ============================================================================
- * TICKET-ADV050 — Trade JPA entity (with @ManyToOne, @CreatedDate, @LastModifiedDate)
- * TICKET-ADV052 — Hibernate Envers @Audited (auto rev table — see Day 4 guide)
- * TICKET-ADV067 — Soft delete via @SQLRestriction (filters deleted rows on SELECT)
- *
- * WHAT:    Persistent representation of a trade. Maps to the trades table
- *          declared in 002-schema.xml.
- * HOW:     ManyToOne LAZY to Counterparty and Instrument keeps the row
- *          fetch tight; the service layer asks for the relation only when
- *          it needs it.
- * WHY:     This is the durable record. The domain {@code TradeType} sealed
- *          hierarchy is the in-memory shape used by reconciliation; this
- *          entity is the on-disk shape used by JPA. The mapper between the
- *          two lives in {@code TradeMapper}.
- * OBSERVE: After a save, the trade row has created_at set by Spring Data,
- *          and a row appears in the Envers revision table.
- * ============================================================================
+ * TICKET-ADV050 / ADV052 — persistent, audited trade entity.
  */
 @Entity
-@Table(name = "trades")
+@Table(
+        name = "trades",
+        indexes = {
+                @Index(name = "idx_trades_trade_date", columnList = "trade_date"),
+                @Index(name = "idx_trades_status", columnList = "status")
+        }
+)
 @EntityListeners(AuditingEntityListener.class)
-// @org.hibernate.envers.Audited                  // re-enable when envers tables are migrated
+@Audited
 @SQLRestriction("deleted_at IS NULL")
 public class Trade {
 
@@ -43,12 +48,14 @@ public class Trade {
     @Column(name = "trade_ref", nullable = false, unique = true, length = 30)
     private String tradeRef;
 
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "instrument_id")
+    @JoinColumn(name = "instrument_id", nullable = false)
     private Instrument instrument;
 
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "counterparty_id")
+    @JoinColumn(name = "counterparty_id", nullable = false)
     private Counterparty counterparty;
 
     @Column(name = "asset_class", nullable = false, length = 20)
@@ -66,46 +73,140 @@ public class Trade {
     @Column(name = "trade_date", nullable = false)
     private LocalDate tradeDate;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String status = "PENDING";
+    private TradeStatus status = TradeStatus.PENDING;
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
     @CreatedDate
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     @LastModifiedDate
     @Column(name = "modified_at")
     private Instant modifiedAt;
 
-    public Trade() {}
+    public Trade() {
+    }
 
-    /** Soft-delete: set deletedAt so @SQLRestriction filters this out. */
-    public void softDelete() { this.deletedAt = Instant.now(); }
+    public void softDelete() {
+        this.deletedAt = Instant.now();
+        this.status = TradeStatus.CANCELLED;
+    }
 
-    public Long getId()                  { return id; }
-    public String getTradeRef()          { return tradeRef; }
-    public Instrument getInstrument()    { return instrument; }
-    public Counterparty getCounterparty(){ return counterparty; }
-    public String getAssetClass()        { return assetClass; }
-    public String getSide()              { return side; }
-    public BigDecimal getQuantity()      { return quantity; }
-    public BigDecimal getPrice()         { return price; }
-    public LocalDate getTradeDate()      { return tradeDate; }
-    public String getStatus()            { return status; }
-    public Instant getDeletedAt()        { return deletedAt; }
-    public Instant getCreatedAt()        { return createdAt; }
-    public Instant getModifiedAt()       { return modifiedAt; }
+    public Long getId() {
+        return id;
+    }
 
-    public void setTradeRef(String v)         { this.tradeRef = v; }
-    public void setInstrument(Instrument v)   { this.instrument = v; }
-    public void setCounterparty(Counterparty v){ this.counterparty = v; }
-    public void setAssetClass(String v)       { this.assetClass = v; }
-    public void setSide(String v)             { this.side = v; }
-    public void setQuantity(BigDecimal v)     { this.quantity = v; }
-    public void setPrice(BigDecimal v)        { this.price = v; }
-    public void setTradeDate(LocalDate v)     { this.tradeDate = v; }
-    public void setStatus(String v)           { this.status = v; }
+    public String getTradeRef() {
+        return tradeRef;
+    }
+
+    public Instrument getInstrument() {
+        return instrument;
+    }
+
+    public Counterparty getCounterparty() {
+        return counterparty;
+    }
+
+    public String getAssetClass() {
+        return assetClass;
+    }
+
+    public String getSide() {
+        return side;
+    }
+
+    public BigDecimal getQuantity() {
+        return quantity;
+    }
+
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public LocalDate getTradeDate() {
+        return tradeDate;
+    }
+
+    public TradeStatus getStatus() {
+        return status;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getModifiedAt() {
+        return modifiedAt;
+    }
+
+    public void setTradeRef(String value) {
+        this.tradeRef = value;
+    }
+
+    public void setInstrument(Instrument value) {
+        this.instrument = value;
+    }
+
+    public void setCounterparty(Counterparty value) {
+        this.counterparty = value;
+    }
+
+    public void setAssetClass(String value) {
+        this.assetClass = value;
+    }
+
+    public void setSide(String value) {
+        this.side = value;
+    }
+
+    public void setQuantity(BigDecimal value) {
+        this.quantity = value;
+    }
+
+    public void setPrice(BigDecimal value) {
+        this.price = value;
+    }
+
+    public void setTradeDate(LocalDate value) {
+        this.tradeDate = value;
+    }
+
+    public void setStatus(TradeStatus value) {
+        this.status = Objects.requireNonNull(value, "status");
+    }
+
+    /**
+     * Compatibility boundary for existing controller/service code that still
+     * receives status as a String.
+     */
+    public void setStatus(String value) {
+        setStatus(TradeStatus.valueOf(
+                Objects.requireNonNull(value, "status").trim().toUpperCase()
+        ));
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof Trade trade)) {
+            return false;
+        }
+        return id != null && id.equals(trade.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }
