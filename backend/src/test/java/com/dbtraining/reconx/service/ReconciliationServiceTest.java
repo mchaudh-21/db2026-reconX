@@ -1,7 +1,7 @@
 package com.dbtraining.reconx.service;
 
-import com.dbtraining.reconx.model.EquityTrade;
 import com.dbtraining.reconx.dto.ReconResult;
+import com.dbtraining.reconx.model.EquityTrade;
 import com.dbtraining.reconx.model.ReconciliationRule;
 import com.dbtraining.reconx.model.Side;
 import com.dbtraining.reconx.model.TradeRef;
@@ -20,7 +20,7 @@ import static org.mockito.Mockito.verify;
 class ReconciliationServiceTest {
 
     @Test
-    void testReconcile_savesResultWithMatchedStatus() {
+    void runRecon_savesMatchedResult() {
         ReconResultRepository repository =
                 mock(ReconResultRepository.class);
 
@@ -42,7 +42,7 @@ class ReconciliationServiceTest {
                 "1000"
         );
 
-        service.runRecon(
+        List<ReconResult> results = service.runRecon(
                 List.of(internal),
                 List.of(external),
                 ReconciliationRule.EXACT
@@ -55,19 +55,25 @@ class ReconciliationServiceTest {
 
         ReconResult savedResult = captor.getValue();
 
+        assertThat(results).hasSize(1);
         assertThat(savedResult.tradeRef())
                 .isEqualTo("EQU-20260603-0043");
-
         assertThat(savedResult.status())
                 .isEqualTo(ReconResult.Status.MATCHED);
+        assertThat(savedResult.discrepancyType()).isNull();
+        assertThat(savedResult.details()).isNull();
     }
 
-    private EquityTrade equity(String ref, String price, String qty) {
+    private EquityTrade equity(
+            String ref,
+            String price,
+            String quantity
+    ) {
         return EquityTrade.builder()
                 .tradeRef(TradeRef.of(ref))
                 .instrumentSymbol("SAP.DE")
                 .price(new BigDecimal(price))
-                .quantity(new BigDecimal(qty))
+                .quantity(new BigDecimal(quantity))
                 .currency("EUR")
                 .side(Side.BUY)
                 .tradeDate(LocalDate.of(2026, 6, 3))

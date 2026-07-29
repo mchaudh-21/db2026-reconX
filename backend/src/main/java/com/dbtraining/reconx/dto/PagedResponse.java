@@ -3,10 +3,11 @@ package com.dbtraining.reconx.dto;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
 
 /**
- * TICKET-ADV053 — Tiny wrapper that flattens Spring Data Page<T> into a
- * JSON-friendly shape. Avoids exposing Spring Data internals to clients.
+ * TICKET-ADV053 — stable, JSON-friendly pagination envelope.
  */
 public record PagedResponse<T>(
         List<T> items,
@@ -15,13 +16,33 @@ public record PagedResponse<T>(
         long totalElements,
         int totalPages
 ) {
-    public static <S, T> PagedResponse<T> from(Page<S> src, java.util.function.Function<S, T> mapper) {
+    public PagedResponse {
+        items = List.copyOf(Objects.requireNonNull(items, "items"));
+    }
+
+    public static <E, T> PagedResponse<T> of(
+            Page<E> page,
+            Function<? super E, T> mapper
+    ) {
+        Objects.requireNonNull(page, "page");
+        Objects.requireNonNull(mapper, "mapper");
+
         return new PagedResponse<>(
-                src.getContent().stream().map(mapper).toList(),
-                src.getNumber(),
-                src.getSize(),
-                src.getTotalElements(),
-                src.getTotalPages()
+                page.getContent().stream().map(mapper).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages()
         );
+    }
+
+    /**
+     * Compatibility alias for existing Day-5 starter comments/code.
+     */
+    public static <E, T> PagedResponse<T> from(
+            Page<E> page,
+            Function<? super E, T> mapper
+    ) {
+        return of(page, mapper);
     }
 }

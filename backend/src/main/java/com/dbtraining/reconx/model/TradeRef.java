@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
  *          distinct type makes those mix-ups a compile error.
  * OBSERVE: TradeRef.of("EQU-20260602-0001") works; .of("foo") throws.
  * ============================================================================
+ * @param value unique business reference for the trade
  */
 public record TradeRef(String value) {
 

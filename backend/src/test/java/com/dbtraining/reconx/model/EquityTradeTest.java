@@ -68,13 +68,19 @@ class EquityTradeTest {
                 .hasMessage("instrumentSymbol must not be blank");
     }
 
-    @Test
-    void equality_byTradeRef() {
-        // TODO(TICKET-ADV028): two EquityTrades with the same tradeRef are
-        // equal and share hashCode; a third with a different ref is not equal.
-        org.junit.jupiter.api.Assertions.fail("TICKET-ADV028 not implemented yet");
-    }
+@Test
+void equality_byTradeRef() {
+    EquityTrade first = sampleEquity("EQU-20260602-0001");
+    EquityTrade sameRef = sampleEquity("EQU-20260602-0001");
+    EquityTrade differentRef = sampleEquity("EQU-20260602-0002");
 
+    assertThat(first)
+            .isEqualTo(sameRef)
+            .isNotEqualTo(differentRef);
+
+    assertThat(first.hashCode())
+            .isEqualTo(sameRef.hashCode());
+}
     private EquityTrade sampleEquity(String ref) {
         return EquityTrade.builder()
                 .tradeRef(TradeRef.of(ref))
