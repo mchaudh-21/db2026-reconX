@@ -16,7 +16,14 @@ import java.util.Objects;
  */
 public final class DerivativeTrade implements TradeType {
 
-    public enum OptionType { CALL, PUT }
+    /**
+    * Identifies whether the derivative is a call or put option.
+    */
+    public enum OptionType {
+	/** Call option. */
+	 CALL, 
+	/** Put option. */
+	PUT }
 
     private final TradeRef tradeRef;
     private final String underlying;
@@ -42,6 +49,11 @@ public final class DerivativeTrade implements TradeType {
         this.counterpartyId = b.counterpartyId;
     }
 
+    /**
+    * Creates a new builder for a derivative trade.
+    *
+    * @return a new derivative trade builder
+    */
     public static Builder builder() {
         return new Builder();
     }
@@ -67,34 +79,74 @@ public final class DerivativeTrade implements TradeType {
         return new Money(strike.multiply(quantity), currency);
     }
 
+    /**
+    * Returns the underlying instrument identifier.
+    *
+    * @return the underlying instrument
+    */
     public String underlying() {
         return underlying;
     }
 
+    /**
+    * Returns the derivative strike price.
+    *
+    * @return the strike price
+    */
     public BigDecimal strike() {
         return strike;
     }
 
+    /**
+    * Returns the derivative quantity.
+    *
+    * @return the trade quantity
+    */
     public BigDecimal quantity() {
         return quantity;
     }
 
+    /**
+    * Returns the derivative expiry date.
+    *
+    * @return the expiry date
+    */
     public LocalDate expiry() {
         return expiry;
     }
 
+    /**
+    * Returns whether the derivative is a call or put option.
+    *
+    * @return the option type
+    */
     public OptionType optionType() {
         return optionType;
     }
 
+    /**
+    * Returns the derivative trade currency.
+    *
+    * @return the trade currency
+    */
     public Currency currency() {
         return currency;
     }
 
+    /**
+    * Returns the trade side.
+    *
+    * @return the buy or sell side
+    */
     public Side side() {
         return side;
     }
 
+    /**
+    * Returns the internal counterparty identifier.
+    *
+    * @return the counterparty identifier
+    */
     public long counterpartyId() {
         return counterpartyId;
     }
@@ -127,6 +179,9 @@ public final class DerivativeTrade implements TradeType {
             );
     }
 
+    /**
+    * Builds validated derivative trades.
+    */
     public static final class Builder {
 
         private TradeRef tradeRef;
@@ -139,57 +194,121 @@ public final class DerivativeTrade implements TradeType {
         private Currency currency;
         private Side side;
         private long counterpartyId;
-
-        public Builder tradeRef(TradeRef v) {
+    /**
+    * Creates an empty derivative trade builder.
+    */
+        public Builder() {
+        }
+     
+ /**
+ * Sets the trade reference.
+ *
+ * @param v the trade reference
+ * @return this builder
+ */
+	 public Builder tradeRef(TradeRef v) {
             this.tradeRef = v;
             return this;
         }
 
-        public Builder underlying(String v) {
+/**
+ * Sets the underlying instrument identifier.
+ *
+ * @param v the underlying instrument
+ * @return this builder
+ */  
+       public Builder underlying(String v) {
             this.underlying = v;
             return this;
         }
-
+/**
+ * Sets the derivative strike price.
+ *
+ * @param v the strike price
+ * @return this builder
+ */
         public Builder strike(BigDecimal v) {
             this.strike = v;
             return this;
         }
-
+/**
+ * Sets the derivative quantity.
+ *
+ * @param v the trade quantity
+ * @return this builder
+ */
         public Builder quantity(BigDecimal v) {
             this.quantity = v;
             return this;
         }
 
+        /**
+ * Sets the derivative expiry date.
+ *
+ * @param v the expiry date
+ * @return this builder
+ */
         public Builder expiry(LocalDate v) {
             this.expiry = v;
             return this;
         }
-
+/**
+ * Sets the derivative option type.
+ *
+ * @param v the call or put option type
+ * @return this builder
+ */
         public Builder optionType(OptionType v) {
             this.optionType = v;
             return this;
         }
-
+/**
+ * Sets the derivative trade currency.
+ *
+ * @param code the ISO currency code
+ * @return this builder
+ */
         public Builder currency(String code) {
             this.currency = Currency.getInstance(code);
             return this;
         }
-
+/**
+ * Sets the trade side.
+ *
+ * @param v the buy or sell side
+ * @return this builder
+ */
         public Builder side(Side v) {
             this.side = v;
             return this;
         }
-
+/**
+ * Sets the trade date.
+ *
+ * @param v the trade date
+ * @return this builder
+ */
         public Builder tradeDate(LocalDate v) {
             this.tradeDate = v;
             return this;
         }
 
-        public Builder counterpartyId(long v) {
+/**
+ * Sets the internal counterparty identifier.
+ *
+ * @param v the counterparty identifier
+ * @return this builder
+ */   
+     public Builder counterpartyId(long v) {
             this.counterpartyId = v;
             return this;
         }
 
+/**
+ * Validates the configured values and creates a derivative trade.
+ *
+ * @return the validated derivative trade
+ */
         public DerivativeTrade build() {
             Objects.requireNonNull(tradeRef, "tradeRef");
             Objects.requireNonNull(underlying, "underlying");

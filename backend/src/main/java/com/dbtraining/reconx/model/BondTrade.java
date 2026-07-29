@@ -39,6 +39,11 @@ public final class BondTrade implements TradeType {
         this.counterpartyId = builder.counterpartyId;
     }
 
+    /**
+    * Creates a new builder for a bond trade.
+    *
+    * @return a new bond trade builder
+    */
     public static Builder builder() {
         return new Builder();
     }
@@ -63,30 +68,67 @@ public final class BondTrade implements TradeType {
         return AssetClass.BOND;
     }
 
+    /**
+    * Returns the bond ISIN.
+    *
+    * @return the bond identifier
+    */
     public String isin() {
         return isin;
     }
 
+    /**
+    * Returns the bond face value.
+    *
+    * @return the face value
+    */
     public BigDecimal faceValue() {
         return faceValue;
     }
 
+
+    /**
+    * Returns the bond coupon rate.
+    *
+    * @return the coupon rate
+    */
     public BigDecimal couponRate() {
         return couponRate;
     }
 
+    /**
+    * Returns the bond maturity date.
+    *
+    * @return the maturity date
+    */
     public LocalDate maturityDate() {
         return maturityDate;
     }
 
+
+    /**
+    * Returns the bond currency.
+    *
+    * @return the trade currency
+    */
     public Currency currency() {
         return currency;
     }
 
+    /**
+    * Returns the trade side.
+    *
+    * @return the buy or sell side
+    */
     public Side side() {
         return side;
     }
 
+    /**
+    * Returns the internal counterparty identifier.
+    *
+    * @return the counterparty identifier
+    */
     public long counterpartyId() {
         return counterpartyId;
     }
@@ -117,6 +159,9 @@ public final class BondTrade implements TradeType {
             );
     }
 
+    /**
+    * Builds validated bond trades.
+    */
     public static final class Builder {
 
         private TradeRef tradeRef;
@@ -129,52 +174,118 @@ public final class BondTrade implements TradeType {
         private LocalDate tradeDate;
         private long counterpartyId;
 
-        public Builder tradeRef(TradeRef value) {
+       /**
+     * Creates an empty bond trade builder.
+     */
+    public Builder() {
+    }
+
+    /**
+     * Sets the trade reference.
+     *
+    * @param value the trade reference
+     * @return this builder
+    */
+    public Builder tradeRef(TradeRef value) {
             this.tradeRef = value;
             return this;
         }
 
-        public Builder isin(String value) {
+        /**
+     * Sets the bond ISIN.
+     *
+     * @param value the bond identifier
+     * @return this builder
+     */
+    public Builder isin(String value) {
             this.isin = value;
             return this;
         }
 
-        public Builder faceValue(BigDecimal value) {
+        /**
+     * Sets the bond face value.
+     *
+     * @param value the face value
+     * @return this builder
+     */
+    public Builder faceValue(BigDecimal value) {
             this.faceValue = value;
             return this;
         }
 
-        public Builder couponRate(BigDecimal value) {
+        /**
+     * Sets the bond coupon rate.
+     *
+    * @param value the coupon rate
+     * @return this builder
+     */
+    public Builder couponRate(BigDecimal value) {
             this.couponRate = value;
             return this;
         }
 
-        public Builder maturityDate(LocalDate value) {
+        /**
+     * Sets the bond maturity date.
+     *
+     * @param value the maturity date
+     * @return this builder
+     */
+    public Builder maturityDate(LocalDate value) {
             this.maturityDate = value;
             return this;
         }
 
-        public Builder currency(String code) {
+        /**
+     * Sets the bond currency.
+     *
+     * @param code the ISO currency code
+     * @return this builder
+     */
+    public Builder currency(String code) {
             this.currency = Currency.getInstance(code);
             return this;
         }
 
-        public Builder side(Side value) {
+        /**
+     * Sets the trade side.
+     *
+     * @param value the buy or sell side
+     * @return this builder
+    */
+    public Builder side(Side value) {
             this.side = value;
             return this;
         }
 
-        public Builder tradeDate(LocalDate value) {
+        /**
+     * Sets the trade date.
+    *
+     * @param value the trade date
+     * @return this builder
+    */
+    public Builder tradeDate(LocalDate value) {
             this.tradeDate = value;
             return this;
         }
 
+    /**
+     * Sets the internal counterparty identifier.
+     *
+     * @param value the counterparty identifier
+     * @return this builder
+     */
         public Builder counterpartyId(long value) {
             this.counterpartyId = value;
             return this;
         }
 
-        public BondTrade build() {
+        /**
+     * Validates the configured values and creates a bond trade.
+     *
+     * @return the validated bond trade
+     */
+
+    public BondTrade build() {
             Objects.requireNonNull(tradeRef, "tradeRef");
             Objects.requireNonNull(isin, "isin");
             Objects.requireNonNull(faceValue, "faceValue");

@@ -38,6 +38,11 @@ public final class FXTrade implements TradeType {
         this.counterpartyId = builder.counterpartyId;
     }
 
+/**
+ * Creates a new builder for an FX trade.
+ *
+ * @return a new FX trade builder
+ */
     public static Builder builder() {
         return new Builder();
     }
@@ -66,15 +71,29 @@ public final class FXTrade implements TradeType {
         return AssetClass.FX;
     }
 
+/**
+ * Returns the first trade currency.
+ *
+ * @return the first currency
+ */
     public Currency ccy1() {
         return ccy1;
     }
 
+/**
+ * Returns the second trade currency.
+ *
+ * @return the second currency
+ */
     public Currency ccy2() {
         return ccy2;
     }
 
-    /** Base-currency notional, denominated in ccy1. */
+/**
+ * Returns the base-currency notional denominated in currency one.
+ *
+ * @return the notional amount in currency one
+ */
     public BigDecimal notionalCcy1() {
         return notionalCcy1;
     }
@@ -115,7 +134,9 @@ public final class FXTrade implements TradeType {
                     fxRate.toPlainString()
             );
     }
-
+/**
+ * Fluent builder for creating FX trades.
+ */
     public static final class Builder {
 
         private TradeRef tradeRef;
@@ -127,16 +148,36 @@ public final class FXTrade implements TradeType {
         private LocalDate tradeDate;
         private long counterpartyId;
 
+
+/**
+ * Creates a new builder for an FX trade.
+ */
+	public Builder() {
+	}   
         public Builder tradeRef(TradeRef value) {
             this.tradeRef = value;
             return this;
         }
 
+/**
+ * Sets the first trade currency.
+ *
+ * @param code the first currency code
+ * @return this builder
+ */
         public Builder ccy1(String code) {
             this.ccy1 = Currency.getInstance(code);
             return this;
         }
 
+
+
+/**
+ * Sets the second trade currency.
+ *
+ * @param code the second currency code
+ * @return this builder
+ */
         public Builder ccy2(String code) {
             this.ccy2 = Currency.getInstance(code);
             return this;
