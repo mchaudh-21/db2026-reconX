@@ -110,17 +110,6 @@ public final class FXTrade implements TradeType {
         return counterpartyId;
     }
 
-    @Override
-    public boolean equals(Object other) {
-        // TODO(TICKET-ADV028): pattern-match on FXTrade and compare tradeRef.
-        throw new UnsupportedOperationException("TICKET-ADV028");
-    }
-
-    @Override
-    public int hashCode() {
-        // TODO(TICKET-ADV028): hash from tradeRef.
-        throw new UnsupportedOperationException("TICKET-ADV028");
-    }
 
     @Override
     public String toString() {
@@ -137,6 +126,18 @@ public final class FXTrade implements TradeType {
 /**
  * Fluent builder for creating FX trades.
  */
+
+    @Override
+    public boolean equals(Object o) {
+        return (o instanceof FXTrade other)
+                && tradeRef.equals(other.tradeRef);
+    }
+
+    @Override
+    public int hashCode() {
+        return tradeRef.hashCode();
+    }
+
     public static final class Builder {
 
         private TradeRef tradeRef;
