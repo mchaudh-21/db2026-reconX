@@ -8,6 +8,9 @@ import com.dbtraining.reconx.repository.ReconResultRepository;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.stereotype.Service;
+
+@Service
 public class ReconciliationService {
 
     private final ReconciliationEngine engine;
