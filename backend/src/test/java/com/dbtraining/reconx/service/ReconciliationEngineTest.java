@@ -1,12 +1,16 @@
 package com.dbtraining.reconx.service;
 
 import com.dbtraining.reconx.dto.ReconResult;
-import com.dbtraining.reconx.model.*;
+import com.dbtraining.reconx.dto.ReconSummary;
+import com.dbtraining.reconx.model.EquityTrade;
+import com.dbtraining.reconx.model.ReconciliationRule;
+import com.dbtraining.reconx.model.Side;
+import com.dbtraining.reconx.model.TradeRef;
+import com.dbtraining.reconx.model.TradeType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,8 +20,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * TICKET-ADV037 / ADV040 / ADV041 / ADV042 — TDD: write the test FIRST,
- * then the implementation.
+ * TICKET-ADV037 / ADV040 / ADV041 / ADV042 / ADV047
+ *
+ * Tests reconciliation behavior, tolerance rules, missing trades,
+ * empty inputs, concurrent counterparty reconciliation, and summary results.
  */
 class ReconciliationEngineTest {
 
@@ -26,129 +32,235 @@ class ReconciliationEngineTest {
     @Test
     @DisplayName("Exact matching trades return a matched reconciliation result")
     void testReconcile_exactMatch_returnsMatched() {
-        // given
+        // Given
         EquityTrade internalTrade =
                 equity("EQT-20260603-0001", "100.00", "10");
+
         EquityTrade externalTrade =
                 equity("EQT-20260603-0001", "100.00", "10");
 
-        // when
-        List<ReconResult> out = engine.reconcile(
+        // When
+        List<ReconResult> results = engine.reconcile(
                 List.of(internalTrade),
                 List.of(externalTrade),
                 ReconciliationRule.EXACT
         );
 
-        // then
-        assertThat(out).hasSize(1);
-        assertThat(out.getFirst().status())
+        // Then
+        assertThat(results).hasSize(1);
+
+        ReconResult result = results.getFirst();
+
+        assertThat(result.tradeRef())
+                .isEqualTo("EQT-20260603-0001");
+
+        assertThat(result.status())
                 .isEqualTo(ReconResult.Status.MATCHED);
+
+        assertThat(result.discrepancyType()).isNull();
+        assertThat(result.details()).isNull();
     }
 
-        @ParameterizedTest(
-                name = "price diff {0} stays within 1% tolerance -> MATCHED"
-        )
-        @ValueSource(strings = {"0.10", "0.50", "0.99"})
-        void testReconcile_priceTolerance_withinThreshold(String diff) {
+    @ParameterizedTest(
+            name = "Price difference {0} remains within 1% tolerance"
+    )
+    @ValueSource(strings = {"0.10", "0.50", "0.99"})
+    @DisplayName("Price differences within one percent return matched")
+    void testReconcile_priceTolerance_withinThreshold(String difference) {
+        // Given
         BigDecimal basePrice = new BigDecimal("100.00");
 
-        EquityTrade internal = equity(
+        EquityTrade internalTrade = equity(
                 "EQU-20260603-0002",
                 basePrice.toPlainString(),
                 "1000"
         );
 
-        EquityTrade external = equity(
+        EquityTrade externalTrade = equity(
                 "EQU-20260603-0002",
-                basePrice.add(new BigDecimal(diff)).toPlainString(),
+                basePrice.add(new BigDecimal(difference)).toPlainString(),
                 "1000"
         );
 
-        List<ReconResult> out = engine.reconcile(
-                List.of(internal),
-                List.of(external),
+        // When
+        List<ReconResult> results = engine.reconcile(
+                List.of(internalTrade),
+                List.of(externalTrade),
                 ReconciliationRule.PRICE_TOLERANCE_1PCT
         );
 
-        assertThat(out.get(0).status())
-                .isEqualTo(ReconResult.Status.MATCHED);
-        }
+        // Then
+        assertThat(results).hasSize(1);
 
-        @Test
-        void testReconcile_missingCounterpartyTrade_returnsBreak() {
+        assertThat(results.getFirst().status())
+                .isEqualTo(ReconResult.Status.MATCHED);
+    }
+
+    @Test
+    @DisplayName("Missing external trade returns a break")
+    void testReconcile_missingCounterpartyTrade_returnsBreak() {
         // Given
-        EquityTrade internal = equity(
+        EquityTrade internalTrade = equity(
                 "EQU-20260603-0003",
                 "100.00",
                 "1000"
         );
 
         // When
-        List<ReconResult> out = engine.reconcile(
-                List.of(internal),
+        List<ReconResult> results = engine.reconcile(
+                List.of(internalTrade),
                 List.of(),
                 ReconciliationRule.EXACT
         );
 
         // Then
-        assertThat(out.get(0).status())
+        assertThat(results).hasSize(1);
+
+        ReconResult result = results.getFirst();
+
+        assertThat(result.tradeRef())
+                .isEqualTo("EQU-20260603-0003");
+
+        assertThat(result.status())
                 .isEqualTo(ReconResult.Status.BREAK);
 
-        assertThat(out.get(0).discrepancyType())
+        assertThat(result.discrepancyType())
                 .isEqualTo("MISSING_EXTERNAL");
-        }
+
+        assertThat(result.details())
+                .contains("No external trade found");
+    }
 
     @Test
     @DisplayName("Empty internal trades return an empty reconciliation result")
     void testReconcile_emptyInternal_returnsEmpty() {
-        // given
-        List<TradeType> internal = List.of();
-        List<TradeType> external = List.of();
+        // Given
+        List<TradeType> internalTrades = List.of();
+        List<TradeType> externalTrades = List.of();
 
-        // when
-        List<ReconResult> out = engine.reconcile(
-                internal,
-                external,
+        // When
+        List<ReconResult> results = engine.reconcile(
+                internalTrades,
+                externalTrades,
                 ReconciliationRule.EXACT
         );
 
-        // then
-        assertThat(out).isEmpty();
+        // Then
+        assertThat(results).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Null internal trades return an empty reconciliation result")
+    void testReconcile_nullInternal_returnsEmpty() {
+        // When
+        List<ReconResult> results = engine.reconcile(
+                null,
+                List.of(),
+                ReconciliationRule.EXACT
+        );
+
+        // Then
+        assertThat(results).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Null external trades are treated as an empty external feed")
+    void testReconcile_nullExternal_returnsMissingExternalBreak() {
+        // Given
+        EquityTrade internalTrade = equity(
+                "EQU-20260603-0004",
+                "100.00",
+                "1000"
+        );
+
+        // When
+        List<ReconResult> results = engine.reconcile(
+                List.of(internalTrade),
+                null,
+                ReconciliationRule.EXACT
+        );
+
+        // Then
+        assertThat(results).hasSize(1);
+
+        assertThat(results.getFirst().status())
+                .isEqualTo(ReconResult.Status.BREAK);
+
+        assertThat(results.getFirst().discrepancyType())
+                .isEqualTo("MISSING_EXTERNAL");
+    }
+
+    @Test
+    @DisplayName("Duplicate external references do not cause reconciliation to fail")
+    void testReconcile_duplicateExternalReferences_usesFirstTrade() {
+        // Given
+        EquityTrade internalTrade = equity(
+                "EQU-20260603-0005",
+                "100.00",
+                "10"
+        );
+
+        EquityTrade firstExternalTrade = equity(
+                "EQU-20260603-0005",
+                "100.00",
+                "10"
+        );
+
+        EquityTrade duplicateExternalTrade = equity(
+                "EQU-20260603-0005",
+                "200.00",
+                "20"
+        );
+
+        // When
+        List<ReconResult> results = engine.reconcile(
+                List.of(internalTrade),
+                List.of(firstExternalTrade, duplicateExternalTrade),
+                ReconciliationRule.EXACT
+        );
+
+        // Then
+        assertThat(results).hasSize(1);
+
+        assertThat(results.getFirst().status())
+                .isEqualTo(ReconResult.Status.MATCHED);
     }
 
     @Test
     @DisplayName("Trades are reconciled concurrently by counterparty")
     void testReconcileByCounterparty_returnsCombinedResults() {
-        // given
+        // Given
         EquityTrade internalOne =
-                equity("EQT-20260603-0001", "100.00", "10");
+                equity("EQT-20260603-0010", "100.00", "10");
+
         EquityTrade externalOne =
-                equity("EQT-20260603-0001", "100.00", "10");
+                equity("EQT-20260603-0010", "100.00", "10");
 
         EquityTrade internalTwo =
-                equity("EQT-20260603-0002", "200.00", "20");
-        EquityTrade externalTwo =
-                equity("EQT-20260603-0002", "200.00", "20");
+                equity("EQT-20260603-0020", "200.00", "20");
 
-        Map<Long, List<TradeType>> internalByCp = Map.of(
+        EquityTrade externalTwo =
+                equity("EQT-20260603-0020", "200.00", "20");
+
+        Map<Long, List<TradeType>> internalByCounterparty = Map.of(
                 1L, List.of(internalOne),
                 2L, List.of(internalTwo)
         );
 
-        Map<Long, List<TradeType>> externalByCp = Map.of(
+        Map<Long, List<TradeType>> externalByCounterparty = Map.of(
                 1L, List.of(externalOne),
                 2L, List.of(externalTwo)
         );
 
-        // when
-        List<ReconResult> out = engine.reconcileByCounterparty(
-                internalByCp,
-                externalByCp,
+        // When
+        List<ReconResult> results = engine.reconcileByCounterparty(
+                internalByCounterparty,
+                externalByCounterparty,
                 ReconciliationRule.EXACT
         ).join();
 
-        // then
-        assertThat(out)
+        // Then
+        assertThat(results)
                 .hasSize(2)
                 .allSatisfy(result ->
                         assertThat(result.status())
@@ -156,12 +268,59 @@ class ReconciliationEngineTest {
                 );
     }
 
-    private EquityTrade equity(String ref, String price, String qty) {
+    @Test
+    @DisplayName("Three mismatched trades produce a summary with three breaks")
+    void testSummary_allBroken() {
+        // Given
+        List<TradeType> internalTrades = List.of(
+                equity("T1", "100.00", "10"),
+                equity("T2", "200.00", "20"),
+                equity("T3", "300.00", "30")
+        );
+
+        List<TradeType> externalTrades = List.of(
+                equity("T1", "101.00", "10"),
+                equity("T2", "201.00", "20"),
+                equity("T3", "301.00", "30")
+        );
+
+        // When
+        List<ReconResult> results = engine.reconcile(
+                internalTrades,
+                externalTrades,
+                ReconciliationRule.EXACT
+        );
+
+        ReconSummary summary =
+        results.stream()
+                .collect(new ReconSummaryCollector());
+
+        // Then
+        assertThat(results)
+                .hasSize(3)
+                .allSatisfy(result -> {
+                    assertThat(result.status())
+                            .isEqualTo(ReconResult.Status.BREAK);
+
+                    assertThat(result.discrepancyType())
+                            .isEqualTo("VALUE_MISMATCH");
+                });
+
+        assertThat(summary.total()).isEqualTo(3);
+        assertThat(summary.matched()).isZero();
+        assertThat(summary.broken()).isEqualTo(3);
+    }
+
+    private EquityTrade equity(
+            String tradeReference,
+            String price,
+            String quantity
+    ) {
         return EquityTrade.builder()
-                .tradeRef(TradeRef.of(ref))
+                .tradeRef(TradeRef.of(tradeReference))
                 .instrumentSymbol("SAP.DE")
                 .price(new BigDecimal(price))
-                .quantity(new BigDecimal(qty))
+                .quantity(new BigDecimal(quantity))
                 .currency("EUR")
                 .side(Side.BUY)
                 .tradeDate(LocalDate.of(2026, 6, 3))
