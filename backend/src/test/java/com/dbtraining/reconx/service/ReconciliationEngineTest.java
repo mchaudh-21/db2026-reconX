@@ -273,15 +273,15 @@ class ReconciliationEngineTest {
     void testSummary_allBroken() {
         // Given
         List<TradeType> internalTrades = List.of(
-                equity("T1", "100.00", "10"),
-                equity("T2", "200.00", "20"),
-                equity("T3", "300.00", "30")
+                equity("ABC-20260603-0001", "100.00", "10"),
+                equity("ABC-20260603-0002", "200.00", "20"),
+                equity("ABC-20260603-0003", "300.00", "30")
         );
 
         List<TradeType> externalTrades = List.of(
-                equity("T1", "101.00", "10"),
-                equity("T2", "201.00", "20"),
-                equity("T3", "301.00", "30")
+                equity("ABC-20260603-0001", "101.00", "10"),
+                equity("ABC-20260603-0002", "201.00", "20"),
+                equity("ABC-20260603-0003", "301.00", "30")
         );
 
         // When

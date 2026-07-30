@@ -2,6 +2,7 @@
 <!--
 ============================================================================
 TICKET-ADV012 - Liquibase master changelog
+
 ADV008 ordering note:
 006-audit-and-recon.xml must run before 005-mat-views.xml because the
 materialised view reads from recon_breaks.
@@ -12,6 +13,7 @@ materialised view reads from recon_breaks.
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
     <include file="changes/001-init.xml" relativeToChangelogFile="true"/>
     <include file="changes/002-schema.xml" relativeToChangelogFile="true"/>
     <include file="changes/003-jsonb.xml" relativeToChangelogFile="true"/>
@@ -22,4 +24,6 @@ materialised view reads from recon_breaks.
     <include file="changes/008-seed.xml" relativeToChangelogFile="true"/>
     <include file="changes/010-instruments-jsonb-metadata.xml" relativeToChangelogFile="true"/>
     <include file="changes/011-envers-audit.xml" relativeToChangelogFile="true"/>
+    <include file="changes/012-recon-break-job-link.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>
