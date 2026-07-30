@@ -15,6 +15,8 @@ import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import com.dbtraining.reconx.security.SecurityConfig;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 import java.time.Instant;
