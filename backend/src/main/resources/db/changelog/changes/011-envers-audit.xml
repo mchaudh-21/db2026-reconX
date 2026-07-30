@@ -16,6 +16,7 @@
             <column name="rev" type="INT" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
+
             <column name="revtstmp" type="BIGINT"/>
         </createTable>
 
@@ -35,9 +36,11 @@
             <column name="id" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
+
             <column name="rev" type="INT">
                 <constraints nullable="false"/>
             </column>
+
             <column name="revtype" type="SMALLINT"/>
             <column name="trade_ref" type="VARCHAR(30)"/>
             <column name="instrument_id" type="BIGINT"/>
@@ -75,10 +78,10 @@
       AuditLog entity maps these fields as text/Types.VARCHAR.
       PostgreSQL is left unchanged.
     -->
-    <changeSet id="011-h2-audit-log-text-compat" author="david">
-        <preConditions onFail="HALT">
-            <dbms type="h2"/>
-        </preConditions>
+    <changeSet
+            id="011-h2-audit-log-text-compat"
+            author="david"
+            dbms="h2">
 
         <modifyDataType
                 tableName="audit_log"
@@ -95,10 +98,12 @@
                     tableName="audit_log"
                     columnName="before_state"
                     newDataType="CLOB"/>
+
             <modifyDataType
                     tableName="audit_log"
                     columnName="after_state"
                     newDataType="CLOB"/>
         </rollback>
     </changeSet>
+
 </databaseChangeLog>
