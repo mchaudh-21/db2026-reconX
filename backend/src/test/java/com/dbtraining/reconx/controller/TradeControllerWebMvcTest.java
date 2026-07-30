@@ -4,19 +4,21 @@ import com.dbtraining.reconx.dto.TradeMapper;
 import com.dbtraining.reconx.dto.TradeRequest;
 import com.dbtraining.reconx.dto.TradeResponse;
 import com.dbtraining.reconx.repository.entity.Trade;
+import com.dbtraining.reconx.security.JwtAuthenticationFilter;
 import com.dbtraining.reconx.security.JwtTokenProvider;
+import com.dbtraining.reconx.security.SecurityConfig;
 import com.dbtraining.reconx.service.TradeService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
-import com.dbtraining.reconx.security.SecurityConfig;
-import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,6 +35,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(TradeController.class)
+@Import({
+        SecurityConfig.class,
+        JwtAuthenticationFilter.class
+})
 class TradeControllerWebMvcTest {
 
     @Autowired
@@ -75,6 +81,7 @@ class TradeControllerWebMvcTest {
         Instant now = Instant.now();
 
         Trade savedTrade = new Trade();
+        ReflectionTestUtils.setField(savedTrade, "id", 42L);
         savedTrade.setTradeRef("TRD-20260315-9999");
         savedTrade.setAssetClass("EQUITY");
         savedTrade.setSide("BUY");
@@ -115,7 +122,7 @@ class TradeControllerWebMvcTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string(
                         "Location",
-                        containsString("/v1/trades/42")
+                        containsString("/api/v1/trades/42")
                 ))
                 .andExpect(jsonPath("$.id").value(42))
                 .andExpect(jsonPath("$.tradeRef")
