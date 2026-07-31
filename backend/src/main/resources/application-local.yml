@@ -1,0 +1,8 @@
+spring:
+  kafka:
+    listener:
+      auto-startup: false
+
+logging:
+  level:
+    com.dbtraining.reconx: INFO
