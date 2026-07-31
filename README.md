@@ -257,3 +257,12 @@ A 20-minute end-to-end walkthrough:
 ---
 
 ## Good luck — and ask your instructors anything 🏦
+
+## API versioning
+
+All public API endpoints use a version segment such as `/api/v1`.
+
+Breaking API changes must be introduced under a new version segment, such as
+`/api/v2`. Older versions remain available until their published sunset date.
+Deprecated endpoints return a `Deprecation` header, a `Sunset` header, and a
+`Link` header pointing to the successor version.
