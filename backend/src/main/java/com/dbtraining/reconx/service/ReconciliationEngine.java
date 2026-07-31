@@ -1,5 +1,6 @@
 package com.dbtraining.reconx.service;
 
+import com.dbtraining.reconx.config.ReconConfig;
 import com.dbtraining.reconx.dto.ReconResult;
 import com.dbtraining.reconx.model.BondTrade;
 import com.dbtraining.reconx.model.DerivativeTrade;
@@ -8,9 +9,11 @@ import com.dbtraining.reconx.model.FXTrade;
 import com.dbtraining.reconx.model.ReconciliationRule;
 import com.dbtraining.reconx.model.TradeType;
 import io.micrometer.core.annotation.Timed;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +33,8 @@ import java.util.stream.Collectors;
 @Service
 public class ReconciliationEngine {
 
-    private static final AtomicInteger THREAD_NUMBER = new AtomicInteger(1);
+    private static final AtomicInteger THREAD_NUMBER =
+            new AtomicInteger(1);
 
     private final ExecutorService executor =
             Executors.newFixedThreadPool(
@@ -38,16 +42,30 @@ public class ReconciliationEngine {
                             2,
                             Math.min(
                                     4,
-                                    Runtime.getRuntime().availableProcessors()
+                                    Runtime.getRuntime()
+                                            .availableProcessors()
                             )
                     ),
                     namedThreadFactory()
             );
 
+    private final ReconConfig reconConfig;
+
     /**
-     * TICKET-ADV033 — Index the external feed once, then reconcile each
-     * internal trade with a constant-time lookup.
+     * Preserves all existing direct unit-test construction.
      */
+    public ReconciliationEngine() {
+        this.reconConfig = null;
+    }
+
+    /**
+     * Spring uses the managed runtime controls in the application context.
+     */
+    @Autowired
+    public ReconciliationEngine(ReconConfig reconConfig) {
+        this.reconConfig = reconConfig;
+    }
+
     @Timed(
             value = "reconciliation.duration",
             description = "Wall time of reconcile()",
@@ -68,29 +86,32 @@ public class ReconciliationEngine {
         List<TradeType> safeExternal =
                 external == null ? List.of() : external;
 
-        Map<String, TradeType> externalByRef = safeExternal.stream()
-                .collect(Collectors.toMap(
-                        trade -> trade.tradeRef().value(),
-                        Function.identity(),
-                        (first, duplicate) -> first
-                ));
+        Map<String, TradeType> externalByRef =
+                safeExternal.stream()
+                        .collect(Collectors.toMap(
+                                trade ->
+                                        trade.tradeRef().value(),
+                                Function.identity(),
+                                (first, duplicate) -> first
+                        ));
 
         return internal.parallelStream()
-                .map(internalTrade -> matchOne(
-                        internalTrade,
-                        externalByRef.get(
-                                internalTrade.tradeRef().value()
-                        ),
-                        rule
-                ))
+                .map(internalTrade ->
+                        matchOne(
+                                internalTrade,
+                                externalByRef.get(
+                                        internalTrade
+                                                .tradeRef()
+                                                .value()
+                                ),
+                                rule
+                        )
+                )
                 .toList();
     }
 
-    /**
-     * TICKET-ADV037 — Reconcile each counterparty concurrently using an
-     * explicitly owned, bounded executor.
-     */
-    public CompletableFuture<List<ReconResult>> reconcileByCounterparty(
+    public CompletableFuture<List<ReconResult>>
+    reconcileByCounterparty(
             Map<Long, List<TradeType>> internalByCp,
             Map<Long, List<TradeType>> externalByCp,
             ReconciliationRule rule
@@ -112,14 +133,16 @@ public class ReconciliationEngine {
                         .map(counterpartyId ->
                                 CompletableFuture.supplyAsync(
                                         () -> reconcile(
-                                                safeInternal.getOrDefault(
-                                                        counterpartyId,
-                                                        List.of()
-                                                ),
-                                                safeExternal.getOrDefault(
-                                                        counterpartyId,
-                                                        List.of()
-                                                ),
+                                                safeInternal
+                                                        .getOrDefault(
+                                                                counterpartyId,
+                                                                List.of()
+                                                        ),
+                                                safeExternal
+                                                        .getOrDefault(
+                                                                counterpartyId,
+                                                                List.of()
+                                                        ),
                                                 rule
                                         ),
                                         executor
@@ -129,12 +152,16 @@ public class ReconciliationEngine {
 
         CompletableFuture<Void> allCompleted =
                 CompletableFuture.allOf(
-                        futures.toArray(CompletableFuture[]::new)
+                        futures.toArray(
+                                CompletableFuture[]::new
+                        )
                 );
 
         return allCompleted.thenApply(ignored ->
                 futures.stream()
-                        .flatMap(future -> future.join().stream())
+                        .flatMap(future ->
+                                future.join().stream()
+                        )
                         .toList()
         );
     }
@@ -157,11 +184,12 @@ public class ReconciliationEngine {
         BigDecimal[] internalPair = priceQty(internal);
         BigDecimal[] externalPair = priceQty(external);
 
-        if (rule.matches(
+        if (matches(
                 internalPair[0],
                 internalPair[1],
                 externalPair[0],
-                externalPair[1]
+                externalPair[1],
+                rule
         )) {
             return ReconResult.matched(tradeRef);
         }
@@ -178,9 +206,55 @@ public class ReconciliationEngine {
         );
     }
 
-    /**
-     * Exhaustive switch over the sealed TradeType hierarchy.
-     */
+    private boolean matches(
+            BigDecimal internalPrice,
+            BigDecimal internalQuantity,
+            BigDecimal externalPrice,
+            BigDecimal externalQuantity,
+            ReconciliationRule rule
+    ) {
+        if (reconConfig == null
+                || !reconConfig.hasPriceToleranceOverride()) {
+            return rule.matches(
+                    internalPrice,
+                    internalQuantity,
+                    externalPrice,
+                    externalQuantity
+            );
+        }
+
+        BigDecimal priceDifference =
+                internalPrice.subtract(externalPrice).abs();
+
+        BigDecimal priceDifferencePercent =
+                internalPrice.signum() == 0
+                        ? (
+                            externalPrice.signum() == 0
+                                    ? BigDecimal.ZERO
+                                    : BigDecimal.ONE
+                        )
+                        : priceDifference.divide(
+                                internalPrice.abs(),
+                                12,
+                                RoundingMode.HALF_UP
+                        );
+
+        BigDecimal quantityDifference =
+                internalQuantity
+                        .subtract(externalQuantity)
+                        .abs();
+
+        BigDecimal runtimeTolerance =
+                BigDecimal.valueOf(
+                        reconConfig.getPriceTolerance()
+                );
+
+        return priceDifferencePercent
+                .compareTo(runtimeTolerance) <= 0
+                && quantityDifference
+                .compareTo(rule.qtyToleranceAbs()) <= 0;
+    }
+
     private BigDecimal[] priceQty(TradeType trade) {
         return switch (trade) {
             case EquityTrade equity ->
@@ -206,9 +280,6 @@ public class ReconciliationEngine {
         };
     }
 
-    /**
-     * Stops the executor owned by this reconciliation engine.
-     */
     public void shutdown() {
         executor.shutdown();
     }

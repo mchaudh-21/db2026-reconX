@@ -6,6 +6,8 @@ spring:
     name: reconx
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  jmx:
+    enabled: true
 
   liquibase:
     change-log: classpath:/db/changelog/db.changelog-master.xml
@@ -25,8 +27,6 @@ spring:
 
   cache:
     cache-names: instruments,counterparties
-    caffeine:
-      spec: maximumSize=500,expireAfterWrite=5m
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
@@ -53,7 +53,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,env,loggers
+        include: health,info,metrics,prometheus,caches,beans,env,loggers
       base-path: /actuator
   endpoint:
     health:
@@ -71,6 +71,10 @@ management:
       application: ${spring.application.name}
 
 reconx:
+  audit:
+    enabled: true
+  reconciliation:
+    price-tolerance: 0.01
   security:
     jwt:
       secret: ${JWT_SECRET:dev-secret-change-me-32-bytes-min!!}

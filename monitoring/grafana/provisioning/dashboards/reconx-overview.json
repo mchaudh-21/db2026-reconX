@@ -1,54 +1,261 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "graphTooltip": 1,
   "id": null,
   "panels": [
     {
       "type": "timeseries",
-      "title": "API request rate by endpoint (ADV087)",
-      "datasource": { "type": "prometheus", "uid": "reconx-prometheus" },
+      "title": "API request rate by endpoint",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "reconx-prometheus"
+      },
       "targets": [
-        { "expr": "sum(rate(http_server_requests_seconds_count[1m])) by (uri)", "legendFormat": "{{uri}}" }
+        {
+          "expr": "sum by (uri) (rate(http_server_requests_seconds_count[1m]))",
+          "legendFormat": "{{uri}}",
+          "refId": "A"
+        }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
     },
     {
       "type": "timeseries",
-      "title": "API P95 latency (ADV088)",
-      "datasource": { "type": "prometheus", "uid": "reconx-prometheus" },
+      "title": "API response time P50/P95/P99",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "reconx-prometheus"
+      },
       "targets": [
-        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, uri))", "legendFormat": "{{uri}}" }
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, uri) (rate(http_server_requests_seconds_bucket[5m])))",
+          "legendFormat": "P50 {{uri}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket[5m])))",
+          "legendFormat": "P95 {{uri}}",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_seconds_bucket[5m])))",
+          "legendFormat": "P99 {{uri}}",
+          "refId": "C"
+        }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Trades created / sec",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "reconx-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(trade_creation_total[1m]))",
+          "legendFormat": "trades/sec",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "type": "heatmap",
+      "title": "Reconciliation duration histogram",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "reconx-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (le) (rate(reconciliation_duration_seconds_bucket[1m]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "mode": "scheme",
+          "scheme": "Oranges"
+        },
+        "legend": {
+          "show": true
+        },
+        "tooltip": {
+          "show": true,
+          "yHistogram": true
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 8,
+        "y": 8
+      }
     },
     {
       "type": "stat",
-      "title": "Open recon breaks (ADV091)",
-      "datasource": { "type": "prometheus", "uid": "reconx-prometheus" },
-      "targets": [{ "expr": "recon_break_count" }],
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 }
+      "title": "Open recon breaks",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "reconx-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "recon_break_count",
+          "legendFormat": "open breaks",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 8
+      }
     },
     {
-      "type": "timeseries",
-      "title": "Trades created / sec (ADV089)",
-      "datasource": { "type": "prometheus", "uid": "reconx-prometheus" },
-      "targets": [{ "expr": "sum(rate(trade_created_total[1m]))" }],
-      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 8 }
-    },
-    {
-      "type": "timeseries",
-      "title": "Reconciliation duration histogram (ADV090)",
-      "datasource": { "type": "prometheus", "uid": "reconx-prometheus" },
-      "targets": [{ "expr": "sum(rate(reconciliation_duration_seconds_bucket[5m])) by (le)" }],
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 }
+      "type": "piechart",
+      "title": "Trades by status",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "reconx-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "trades_by_status",
+          "legendFormat": "{{status}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "displayLabels": [
+          "name",
+          "value"
+        ],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      }
     }
   ],
-  "refresh": "10s",
+  "refresh": "5s",
   "schemaVersion": 39,
-  "tags": ["reconx"],
-  "templating": { "list": [] },
-  "time": { "from": "now-15m", "to": "now" },
+  "tags": [
+    "reconx",
+    "day6"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timezone": "browser",
   "title": "ReconX Overview",
   "uid": "reconx-overview",
   "version": 1

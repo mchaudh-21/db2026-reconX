@@ -26,16 +26,7 @@ import static com.dbtraining.reconx.repository.TradeSpecifications.hasStatus;
 import static com.dbtraining.reconx.repository.TradeSpecifications.tradeDateBetween;
 
 /**
- * ============================================================================
- * TICKET-ADV063 — paginated and filterable list backing
- * TICKET-ADV064 — create
- * TICKET-ADV065 — full update
- * TICKET-ADV066 — status-only update
- * TICKET-ADV067 — soft delete
- *
- * Future hooks owned by ADV083/ADV086/ADV129 remain injected but are not
- * invoked here while their current starter methods are placeholders.
- * ============================================================================
+ * ADV063–ADV067 trade CRUD plus ADV083/ADV086 business metrics.
  */
 @Service
 @Transactional
@@ -45,14 +36,9 @@ public class TradeService {
     private final CounterpartyRepository cpRepo;
     private final InstrumentRepository instRepo;
 
-    /*
-     * Retained in the constructor so future ticket branches can add their
-     * metric and Kafka hooks without creating a constructor merge conflict.
-     */
     @SuppressWarnings("unused")
     private final TradeEventProducer events;
 
-    @SuppressWarnings("unused")
     private final TradeMetrics metrics;
 
     public TradeService(
@@ -78,13 +64,23 @@ public class TradeService {
                 });
 
         Instrument instrument = instrument(request.instrumentId());
-        Counterparty counterparty = counterparty(request.counterpartyId());
+        Counterparty counterparty =
+                counterparty(request.counterpartyId());
 
         Trade trade = new Trade();
         applyRequest(trade, request, instrument, counterparty);
         trade.setStatus(TradeStatus.PENDING);
 
-        return tradeRepo.save(trade);
+        Trade saved = tradeRepo.save(trade);
+
+        metrics.incrementTradeCreated();
+        metrics.recordTradeValue(
+                saved.getQuantity()
+                        .multiply(saved.getPrice())
+                        .doubleValue()
+        );
+
+        return saved;
     }
 
     public Trade update(Long id, TradeRequest request, String actor) {
@@ -92,26 +88,39 @@ public class TradeService {
         Objects.requireNonNull(request, "request");
 
         Trade trade = tradeRepo.findById(id)
-                .orElseThrow(() -> new TradeNotFoundException("id=" + id));
+                .orElseThrow(() ->
+                        new TradeNotFoundException("id=" + id)
+                );
 
         tradeRepo.findByTradeRef(request.tradeRef())
-                .filter(existing -> !Objects.equals(existing.getId(), id))
+                .filter(existing ->
+                        !Objects.equals(existing.getId(), id)
+                )
                 .ifPresent(existing -> {
-                    throw new DuplicateTradeRefException(request.tradeRef());
+                    throw new DuplicateTradeRefException(
+                            request.tradeRef()
+                    );
                 });
 
         Instrument instrument = instrument(request.instrumentId());
-        Counterparty counterparty = counterparty(request.counterpartyId());
+        Counterparty counterparty =
+                counterparty(request.counterpartyId());
 
         applyRequest(trade, request, instrument, counterparty);
         return tradeRepo.save(trade);
     }
 
-    public Trade updateStatus(Long id, String status, String actor) {
+    public Trade updateStatus(
+            Long id,
+            String status,
+            String actor
+    ) {
         Objects.requireNonNull(id, "id");
 
         Trade trade = tradeRepo.findById(id)
-                .orElseThrow(() -> new TradeNotFoundException("id=" + id));
+                .orElseThrow(() ->
+                        new TradeNotFoundException("id=" + id)
+                );
 
         trade.setStatus(status);
         return tradeRepo.save(trade);
@@ -121,7 +130,9 @@ public class TradeService {
         Objects.requireNonNull(id, "id");
 
         Trade trade = tradeRepo.findById(id)
-                .orElseThrow(() -> new TradeNotFoundException("id=" + id));
+                .orElseThrow(() ->
+                        new TradeNotFoundException("id=" + id)
+                );
 
         trade.softDelete();
         tradeRepo.save(trade);
@@ -147,13 +158,19 @@ public class TradeService {
     private Instrument instrument(Long id) {
         return instRepo.findById(id)
                 .orElseThrow(() ->
-                        new TradeNotFoundException("instrument id=" + id));
+                        new TradeNotFoundException(
+                                "instrument id=" + id
+                        )
+                );
     }
 
     private Counterparty counterparty(Long id) {
         return cpRepo.findById(id)
                 .orElseThrow(() ->
-                        new TradeNotFoundException("counterparty id=" + id));
+                        new TradeNotFoundException(
+                                "counterparty id=" + id
+                        )
+                );
     }
 
     private static void applyRequest(
