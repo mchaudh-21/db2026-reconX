@@ -1,15 +1,58 @@
-// TICKET-ADV102 — theme toggle, persisted to localStorage; first paint reads
-// the persisted value to avoid a FOUC flash of the wrong theme.
-(function () {
-  const stored = localStorage.getItem('reconx-theme') || 'light';
-  document.documentElement.dataset.theme = stored;
+/*
+============================================================================
+TICKET-ADV100 — Persistent light/dark theme
+============================================================================
+*/
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('theme-toggle');
-    btn && btn.addEventListener('click', () => {
-      const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-      document.documentElement.dataset.theme = next;
-      localStorage.setItem('reconx-theme', next);
-    });
+(() => {
+  "use strict";
+
+  const STORAGE_KEY = "reconx-theme";
+  const root = document.documentElement;
+  const toggle = document.getElementById("theme-toggle");
+  const icon = document.getElementById("theme-toggle-icon");
+
+  function getPreferredTheme() {
+    const savedTheme = localStorage.getItem(STORAGE_KEY);
+
+    if (savedTheme === "light" || savedTheme === "dark") {
+      return savedTheme;
+    }
+
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+
+  function applyTheme(theme) {
+    const isDark = theme === "dark";
+
+    root.dataset.theme = theme;
+
+    if (toggle) {
+      toggle.setAttribute("aria-pressed", String(isDark));
+      toggle.setAttribute(
+        "aria-label",
+        `Switch to ${isDark ? "light" : "dark"} theme`
+      );
+    }
+
+    if (icon) {
+      icon.textContent = isDark ? "☀" : "☾";
+    }
+  }
+
+  applyTheme(getPreferredTheme());
+
+  if (!toggle) {
+    return;
+  }
+
+  toggle.addEventListener("click", () => {
+    const nextTheme =
+      root.dataset.theme === "dark" ? "light" : "dark";
+
+    localStorage.setItem(STORAGE_KEY, nextTheme);
+    applyTheme(nextTheme);
   });
 })();
