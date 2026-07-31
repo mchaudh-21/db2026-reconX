@@ -7,6 +7,7 @@ import com.dbtraining.reconx.dto.TradeResponse;
 import com.dbtraining.reconx.dto.TradeStatusUpdateRequest;
 import com.dbtraining.reconx.repository.entity.Trade;
 import com.dbtraining.reconx.service.TradeService;
+import com.dbtraining.reconx.service.TradeStreamService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.net.URI;
 import java.time.LocalDate;
@@ -36,23 +39,32 @@ import java.time.LocalDate;
  * ============================================================================
  * TICKET-ADV063-ADV067 — TradeController (full CRUD + filterable list)
  * TICKET-ADV080 — API versioning: every endpoint under /v1/
+ * TICKET-ADV104 — Browser-facing SSE stream for newly created trades
  *
- * Combined with the /api context path from application.yml, full URLs are
- * /api/v1/trades and /api/v1/trades/{id}.
+ * Combined with the /api context path from application.yml, full URLs include:
+ * /api/v1/trades
+ * /api/v1/trades/{id}
+ * /api/v1/trades/stream
  * ============================================================================
  */
 @RestController
 @RequestMapping("/v1/trades")
-@Tag(name = "trades", description = "Trade CRUD and search")
+@Tag(name = "trades", description = "Trade CRUD, search, and live stream")
 @SecurityRequirement(name = "bearerAuth")
 public class TradeController {
 
     private final TradeService service;
     private final TradeMapper mapper;
+    private final TradeStreamService tradeStreamService;
 
-    public TradeController(TradeService service, TradeMapper mapper) {
+    public TradeController(
+            TradeService service,
+            TradeMapper mapper,
+            TradeStreamService tradeStreamService
+    ) {
         this.service = service;
         this.mapper = mapper;
+        this.tradeStreamService = tradeStreamService;
     }
 
     @GetMapping
@@ -85,6 +97,15 @@ public class TradeController {
         return PagedResponse.of(page, mapper::toResponse);
     }
 
+    @GetMapping(
+            value = "/stream",
+            produces = MediaType.TEXT_EVENT_STREAM_VALUE
+    )
+    @Operation(summary = "Stream newly created trades")
+    public SseEmitter stream() {
+        return tradeStreamService.subscribe();
+    }
+
     @PostMapping
     @Operation(summary = "Create a trade")
     public ResponseEntity<TradeResponse> create(
@@ -92,11 +113,15 @@ public class TradeController {
             @AuthenticationPrincipal Object principal
     ) {
         Trade saved = service.create(request, actor(principal));
+        TradeResponse response = mapper.toResponse(saved);
+
+        tradeStreamService.publish(response);
+
         URI location = URI.create("/api/v1/trades/" + saved.getId());
 
         return ResponseEntity
                 .created(location)
-                .body(mapper.toResponse(saved));
+                .body(response);
     }
 
     @PutMapping("/{id}")

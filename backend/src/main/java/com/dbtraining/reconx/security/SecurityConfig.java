@@ -13,7 +13,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
@@ -64,6 +63,16 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/h2/**"
+                        ).permitAll()
+
+                        /*
+                         * EventSource cannot normally attach an Authorization
+                         * bearer header, so the browser-facing SSE endpoint is
+                         * public. This rule must appear before /v1/trades/**.
+                         */
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/v1/trades/stream"
                         ).permitAll()
 
                         // Anyone with one of the application roles may read trades

@@ -3,11 +3,6 @@ package com.dbtraining.reconx.service;
 import com.dbtraining.reconx.repository.ReconResultRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -16,7 +11,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
-@Import(ReconciliationIntegrationTest.TestConfig.class)
 class ReconciliationIntegrationTest {
 
     @Container
@@ -77,20 +71,6 @@ class ReconciliationIntegrationTest {
                 "spring.liquibase.password",
                 postgres::getPassword
         );
-    }
-
-    @TestConfiguration
-    static class TestConfig {
-
-        @Bean
-        PasswordEncoder passwordEncoder() {
-            return new BCryptPasswordEncoder();
-        }
-
-        @Bean
-        ReconResultRepository reconResultRepository() {
-            return result -> result;
-        }
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.dbtraining.reconx.dto.TradeRequest;
 import com.dbtraining.reconx.dto.TradeResponse;
 import com.dbtraining.reconx.repository.entity.Trade;
 import com.dbtraining.reconx.service.TradeService;
+import com.dbtraining.reconx.service.TradeStreamService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,6 +61,9 @@ class TradeControllerTest {
     @Mock
     private TradeMapper mapper;
 
+    @Mock
+    private TradeStreamService tradeStreamService;
+
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
 
@@ -72,7 +76,11 @@ class TradeControllerTest {
         validator.afterPropertiesSet();
 
         TradeController controller =
-                new TradeController(service, mapper);
+                new TradeController(
+                        service,
+                        mapper,
+                        tradeStreamService
+                );
 
         mockMvc = MockMvcBuilders
                 .standaloneSetup(controller)
@@ -139,6 +147,8 @@ class TradeControllerTest {
                 ))
                 .andExpect(jsonPath("$.id").value(42))
                 .andExpect(jsonPath("$.status").value("PENDING"));
+
+        verify(tradeStreamService).publish(response);
     }
 
     @Test

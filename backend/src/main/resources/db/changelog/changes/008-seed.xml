@@ -131,12 +131,9 @@ preconditions so restarting the application does not duplicate records.
 
     <changeSet id="008-seed-users" author="philemon" context="dev,test">
         <preConditions onFail="MARK_RAN" onError="HALT">
-            <and>
-                <tableExists tableName="users"/>
-                <sqlCheck expectedResult="0">
-                    SELECT COUNT(*) FROM users
-                </sqlCheck>
-            </and>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM users
+            </sqlCheck>
         </preConditions>
 
         <insert tableName="users">
