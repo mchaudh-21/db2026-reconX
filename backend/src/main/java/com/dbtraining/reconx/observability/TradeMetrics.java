@@ -1,6 +1,8 @@
 package com.dbtraining.reconx.observability;
 
 import com.dbtraining.reconx.repository.ReconBreakRepository;
+import com.dbtraining.reconx.repository.TradeRepository;
+import com.dbtraining.reconx.repository.entity.TradeStatus;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Gauge;
@@ -8,32 +10,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Component;
 
 /**
- * ============================================================================
- * TICKET-ADV083 — trade_created_total Counter
- * TICKET-ADV085 — recon_break_count Gauge (polled — wraps repo.countByStatus)
- * TICKET-ADV086 — trade_value_total DistributionSummary
- *
- * WHAT:    Holds Micrometer instruments published to /actuator/prometheus.
- * HOW:     Counters / Distribution Summaries are constructed once in the
- *          constructor and stored as final fields. Gauges are "polled" —
- *          Micrometer holds a weak reference and calls the lambda on scrape.
- * WHY:     Three different metric shapes matter:
- *            - Counter: monotonic count of events (created trades)
- *            - DistributionSummary: histogram of magnitudes (trade values)
- *            - Gauge: instantaneous value (open recon breaks)
- *
- * The TIMER for reconciliation duration lives as @Timed on
- * ReconciliationEngine.reconcile() (TICKET-ADV084) — not in this class.
- * ============================================================================
- *
- *  TODO(TICKET-ADV083 + ADV086):
- *    public void incrementTradeCreated() { tradeCreated.increment(); }
- *    public void recordTradeValue(double value) { tradeValue.record(value); }
- *
- *  HINT: A polled Gauge MUST hold a strong reference to its source object,
- *        otherwise it disappears on GC. Here breakRepo is captured by the
- *        Gauge.builder so the lifetime is tied to the registry.
- * ============================================================================
+ * ADV083, ADV085, ADV086, ADV092 — ReconX business metrics.
  */
 @Component
 public class TradeMetrics {
@@ -41,28 +18,53 @@ public class TradeMetrics {
     private final Counter tradeCreated;
     private final DistributionSummary tradeValue;
 
-    public TradeMetrics(MeterRegistry registry, ReconBreakRepository breakRepo) {
-        this.tradeCreated = Counter.builder("trade_created_total")
-                .description("Total trades created")
+    public TradeMetrics(
+            MeterRegistry registry,
+            ReconBreakRepository breakRepository,
+            TradeRepository tradeRepository
+    ) {
+        this.tradeCreated = Counter.builder("trade.creation")
+                .description("Total trades created successfully")
                 .register(registry);
 
-        this.tradeValue = DistributionSummary.builder("trade_value_total")
-                .description("Distribution of trade notional values")
-                .baseUnit("USD")
+        this.tradeValue = DistributionSummary
+                .builder("trade.value")
+                .description("Distribution of trade notional values in USD")
+                
                 .publishPercentileHistogram()
                 .register(registry);
 
-        // TICKET-ADV085 — polled gauge wrapping a repository count.
-        Gauge.builder("recon_break_count", breakRepo, r -> r.countByStatus("OPEN"))
-                .description("Open recon breaks")
+        Gauge.builder(
+                        "recon_break_count",
+                        breakRepository,
+                        repository -> repository.countByStatus("OPEN")
+                )
+                .description("Current open reconciliation breaks")
                 .register(registry);
+
+        /*
+         * The repository domain currently has four workflow states:
+         * PENDING, MATCHED, BREAK, CANCELLED. Use the domain as the source of
+         * truth instead of inventing UNMATCHED/DISPUTED states from the guide.
+         */
+        for (TradeStatus status : TradeStatus.values()) {
+            Gauge.builder(
+                            "trades_by_status",
+                            tradeRepository,
+                            repository ->
+                                    repository.countByStatus(status)
+                    )
+                    .description("Current trades grouped by workflow status")
+                    .tag("status", status.name())
+                    .register(registry);
+        }
     }
 
     public void incrementTradeCreated() {
-        // TODO(TICKET-ADV083): increment the tradeCreated counter.
+        tradeCreated.increment();
     }
 
     public void recordTradeValue(double value) {
-        // TODO(TICKET-ADV086): record the value on the tradeValue distribution summary.
+        tradeValue.record(value);
     }
 }
