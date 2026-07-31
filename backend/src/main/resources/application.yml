@@ -44,6 +44,7 @@ spring:
         spring.json.trusted.packages: com.dbtraining.reconx.dto
         spring.json.use.type.headers: false
         spring.json.value.default.type: com.dbtraining.reconx.dto.TradeEvent
+        metric.reporters: io.micrometer.core.instrument.binder.kafka.KafkaClientMetrics
 
 server:
   servlet:
@@ -61,6 +62,9 @@ management:
       probes:
         enabled: true
   metrics:
+    binders:
+      kafka:
+        enabled: true
     distribution:
       percentiles-histogram:
         http.server.requests: true

@@ -5,9 +5,9 @@ import com.dbtraining.reconx.repository.entity.AuditLogEntry;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -33,10 +33,9 @@ public class AuditController {
     }
 
     @GetMapping("/trades/{tradeRef}/events")
+    @PreAuthorize("hasAnyRole('ADMIN','RECON_ANALYST')")
     @Operation(summary = "Stream of all Kafka-sourced events for a trade")
     public List<AuditLogEntry> events(@PathVariable String tradeRef) {
-        // TODO(TICKET-ADV138): once the audit-log Kafka consumer is in place,
-        //   return auditRepo.findByTradeRefOrderByEventTimestampAsc(tradeRef).
-        return Collections.emptyList();
+        return auditRepo.findByTradeRefOrderByEventTimestampAsc(tradeRef);
     }
 }
