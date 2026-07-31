@@ -2,7 +2,7 @@ package com.dbtraining.reconx.controller;
 
 import com.dbtraining.reconx.dto.LoginRequest;
 import com.dbtraining.reconx.dto.LoginResponse;
-import com.dbtraining.reconx.exception.InvalidTradeException;
+import com.dbtraining.reconx.exception.InvalidCredentialsException;
 import com.dbtraining.reconx.repository.AppUserRepository;
 import com.dbtraining.reconx.repository.entity.AppUser;
 import com.dbtraining.reconx.security.JwtTokenProvider;
@@ -47,7 +47,7 @@ public ResponseEntity<LoginResponse> login(
                     )
             )
             .orElseThrow(() ->
-                    new InvalidTradeException("Invalid credentials")
+                    new InvalidCredentialsException("Invalid credentials")
             );
 
     String token = jwt.generate(

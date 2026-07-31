@@ -125,6 +125,21 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ProblemDetail invalidCredentials(InvalidCredentialsException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.UNAUTHORIZED,
+                ex.getMessage()
+        );
+
+        problem.setTitle("Unauthorized");
+        problem.setType(URI.create(
+                "https://reconx.dbtraining.com/errors/invalid-credentials"));
+        problem.setProperty("timestamp", Instant.now());
+
+        return problem;
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail unexpected(Exception ex) {
         LOGGER.error("Unexpected application error", ex);
@@ -142,4 +157,3 @@ public class GlobalExceptionHandler {
         return problem;
     }
 }
-
