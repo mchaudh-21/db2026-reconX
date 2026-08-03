@@ -1,33 +1,87 @@
-// TICKET-ADV125 — RTL test against the DataTable compound component.
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import DataTable from '../DataTable.jsx';
+
+const columns = [
+  { key: 'name', label: 'Name' },
+  { key: 'value', label: 'Value' },
+];
+
+const rows = [
+  { id: 1, name: 'Beta', value: 2 },
+  { id: 2, name: 'Alpha', value: 1 },
+];
+
+function renderTable(data = rows) {
+  return render(
+    <DataTable data={data}>
+      <DataTable.Header columns={columns} />
+
+      <DataTable.Body
+        renderRow={(row) => (
+          <div role="row" key={row.id}>
+            <span role="cell">{row.name}</span>
+            <span role="cell">{row.value}</span>
+          </div>
+        )}
+      />
+
+      <DataTable.Pagination />
+    </DataTable>,
+  );
+}
 
 describe('<DataTable>', () => {
   it('renders columns and rows', () => {
-    render(
-      <DataTable>
-        <DataTable.Header columns={[{ key: 'a', label: 'Alpha' }, { key: 'b', label: 'Beta' }]} />
-        <DataTable.Body rows={[{ id: 1 }, { id: 2 }]} render={(r) => <span>row {r.id}</span>} />
-      </DataTable>
-    );
-    // TODO(TICKET-ADV125): write assertion — column labels "Alpha" / "Beta"
-    //                     should appear in the document.
-    // TODO(TICKET-ADV125): write assertion — rendered rows "row 1" / "row 2"
-    //                     should appear in the document.
+    renderTable();
+
+    expect(
+      screen.getByRole('button', { name: 'Name' }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole('button', { name: 'Value' }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+    expect(screen.getByText('Beta')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
   });
 
-  it('invokes onSortChange when a header is clicked', async () => {
-    const onSortChange = vi.fn();
-    render(
-      <DataTable onSortChange={onSortChange}>
-        <DataTable.Header columns={[{ key: 'a', label: 'Alpha' }]} />
-        <DataTable.Body rows={[]} render={() => null} />
-      </DataTable>
+  it('sorts rows when a header is clicked', async () => {
+    const user = userEvent.setup();
+
+    renderTable();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Name' }),
     );
-    await userEvent.click(screen.getByText('Alpha'));
-    // TODO(TICKET-ADV125): write assertion — onSortChange should have been
-    //                     called with the clicked column key ('a').
+
+    const body = document.querySelector('.data-table__body');
+    const renderedRows = within(body).getAllByRole('row');
+
+    expect(
+      within(renderedRows[0]).getByText('Alpha'),
+    ).toBeInTheDocument();
+
+    expect(
+      within(renderedRows[1]).getByText('Beta'),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Name' }),
+    );
+
+    const descendingRows = within(body).getAllByRole('row');
+
+    expect(
+      within(descendingRows[0]).getByText('Beta'),
+    ).toBeInTheDocument();
+
+    expect(
+      within(descendingRows[1]).getByText('Alpha'),
+    ).toBeInTheDocument();
   });
 });

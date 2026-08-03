@@ -4,25 +4,47 @@ import React from 'react';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { error: null };
+    this.state = {
+      error: null,
+      resetKey: 0,
+    };
   }
 
-  static getDerivedStateFromError(/* error */) {
-    // TODO(TICKET-ADV113): return new state so the next render shows the
-    //                     fallback UI (e.g. { error }).
-    return null;
+  static getDerivedStateFromError(error) {
+    return { error };
   }
 
   componentDidCatch(error, info) {
-    // TODO(TICKET-ADV113): log the error (in prod we'd ship to Sentry / a
-    //                     browser-side logger). console.error is fine here.
+	void error;
+	void info;
   }
 
+  handleReset = () => {
+    this.setState((previousState) => ({
+      error: null,
+      resetKey: previousState.resetKey + 1,
+    }));
+  };
+
   render() {
-    // TODO(TICKET-ADV113): if this.state.error is set, render an
-    //                     accessible fallback with a "Try again" button that
-    //                     clears the error state. Otherwise render children.
-    return this.props.children;
+    if (this.state.error) {
+      return (
+        <section className="error-boundary" role="alert">
+          <h2>Something went wrong</h2>
+          <p>{this.state.error.message}</p>
+
+          <button type="button" onClick={this.handleReset}>
+            Try again
+          </button>
+        </section>
+      );
+    }
+
+    return (
+      <React.Fragment key={this.state.resetKey}>
+        {this.props.children}
+      </React.Fragment>
+    );
   }
 }
 
@@ -34,6 +56,13 @@ export function withErrorBoundary(Component) {
       </ErrorBoundary>
     );
   }
-  WithErrorBoundary.displayName = `withErrorBoundary(${Component.displayName || Component.name || 'Component'})`;
+
+  WithErrorBoundary.displayName =
+    `withErrorBoundary(${Component.displayName || Component.name || 'Component'})`;
+
   return WithErrorBoundary;
 }
+
+export { ErrorBoundary };
+
+export default withErrorBoundary;

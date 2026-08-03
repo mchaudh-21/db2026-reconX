@@ -1,20 +1,117 @@
-// TICKET-ADV115 — useWebSocket(url) with auto-reconnect (exp backoff up to 5 tries).
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-export function useWebSocket(url, { reconnect = true, maxRetries = 5 } = {}) {
-  // TODO(TICKET-ADV115): open a WebSocket in a useEffect.
-  //   - track readyState in `status` ('connecting' | 'open' | 'closed' | 'error').
-  //   - parse incoming messages as JSON (fall back to raw string).
-  //   - on close, if `reconnect` and retries < maxRetries, schedule another
-  //     connect() with exponential backoff (500 * 2^attempt, capped at 30s).
-  //   - cleanup must close the socket AND cancel any pending reconnect.
-  const [data /*, setData */] = useState(null);
-  const [status /*, setStatus */] = useState('connecting');
+export function useWebSocket(
+  url,
+  {
+    reconnect = true,
+    maxRetries = 5,
+    baseDelay = 500,
+    maxDelay = 8000,
+  } = {},
+) {
+  const [data, setData] = useState(null);
+  const [status, setStatus] = useState('closed');
 
-  const send = (/* payload */) => {
-    // TODO(TICKET-ADV115): only send if the socket exists AND readyState === OPEN.
-    //                     Serialize non-string payloads via JSON.stringify.
+  const socketRef = useRef(null);
+  const retryCountRef = useRef(0);
+  const reconnectTimerRef = useRef(null);
+  const shouldReconnectRef = useRef(reconnect);
+
+  useEffect(() => {
+    shouldReconnectRef.current = reconnect;
+  }, [reconnect]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    function connect() {
+      if (!url || cancelled) {
+        return;
+      }
+
+      setStatus('connecting');
+
+      const socket = new WebSocket(url);
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        retryCountRef.current = 0;
+        setStatus('open');
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          setData(JSON.parse(event.data));
+        } catch {
+          setData(event.data);
+        }
+      };
+
+      socket.onerror = () => {
+        setStatus('error');
+      };
+
+      socket.onclose = () => {
+        socketRef.current = null;
+        setStatus('closed');
+
+        if (
+          cancelled ||
+          !shouldReconnectRef.current ||
+          retryCountRef.current >= maxRetries
+        ) {
+          return;
+        }
+
+        const delay = Math.min(
+          maxDelay,
+          baseDelay * 2 ** retryCountRef.current,
+        );
+
+        retryCountRef.current += 1;
+
+        reconnectTimerRef.current = window.setTimeout(
+          connect,
+          delay,
+        );
+      };
+    }
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      shouldReconnectRef.current = false;
+
+      if (reconnectTimerRef.current) {
+        window.clearTimeout(reconnectTimerRef.current);
+      }
+
+      socketRef.current?.close();
+    };
+  }, [url, maxRetries, baseDelay, maxDelay]);
+
+  const send = useCallback((message) => {
+    const socket = socketRef.current;
+
+    if (socket?.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+
+    socket.send(
+      typeof message === 'string'
+        ? message
+        : JSON.stringify(message),
+    );
+
+    return true;
+  }, []);
+
+  return {
+    data,
+    status,
+    send,
   };
-
-  return { data, status, send };
 }
+
+export default useWebSocket;

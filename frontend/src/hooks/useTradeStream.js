@@ -1,15 +1,45 @@
-// TICKET-ADV116 — useTradeStream() — SSE subscription returning live trades.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-export function useTradeStream(url = '/api/v1/trades/stream') {
-  // TODO(TICKET-ADV116): subscribe to the SSE endpoint with `new EventSource(url)`.
-  //                     - onopen   -> setConnected(true)
-  //                     - onmessage(e) -> JSON.parse(e.data), prepend to `trades`,
-  //                       cap the list at ~200 items so the UI doesn't blow up.
-  //                     - onerror  -> setConnected(false)
-  //                     Close the EventSource in the effect cleanup.
-  const [trades /*, setTrades */] = useState([]);
-  const [isConnected /*, setConnected */] = useState(false);
+export function useTradeStream(
+  url = '/api/v1/trades/stream',
+  maxTrades = 200,
+) {
+  const [trades, setTrades] = useState([]);
+  const [isConnected, setIsConnected] = useState(false);
 
-  return { trades, isConnected };
+  useEffect(() => {
+    const eventSource = new EventSource(url);
+
+    eventSource.onopen = () => {
+      setIsConnected(true);
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const trade = JSON.parse(event.data);
+
+        setTrades((previousTrades) =>
+          [trade, ...previousTrades].slice(0, maxTrades),
+        );
+      } catch {
+        // Ignore malformed SSE messages.
+      }
+    };
+
+    eventSource.onerror = () => {
+      setIsConnected(false);
+    };
+
+    return () => {
+      eventSource.close();
+      setIsConnected(false);
+    };
+  }, [url, maxTrades]);
+
+  return {
+    trades,
+    isConnected,
+  };
 }
+
+export default useTradeStream;

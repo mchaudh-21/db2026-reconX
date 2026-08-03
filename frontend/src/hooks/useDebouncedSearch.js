@@ -1,10 +1,19 @@
-// TICKET-ADV117 — useDebouncedSearch(query, delay).
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export function useDebouncedSearch(query, delay = 300) {
-  // TODO(TICKET-ADV117): hold a debounced copy of `query` in useState, then
-  //                     useEffect with setTimeout(setDebounced, delay).
-  //                     Remember to clearTimeout in the cleanup function.
-  const [debounced /*, setDebounced */] = useState(query);
-  return debounced;
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedQuery(query);
+    }, delay);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [query, delay]);
+
+  return debouncedQuery;
 }
+
+export default useDebouncedSearch;

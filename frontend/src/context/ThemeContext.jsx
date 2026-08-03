@@ -1,26 +1,62 @@
-// TICKET-ADV124 — ThemeProvider: context flips data-theme; CSS owns colours.
-import React, { createContext, useContext, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
-const ThemeContext = createContext({ theme: 'light', toggle: () => {} });
+const ThemeContext = createContext(null);
+
+function getInitialTheme() {
+  const savedTheme = localStorage.getItem('reconx-theme');
+
+  if (savedTheme === 'light' || savedTheme === 'dark') {
+    return savedTheme;
+  }
+
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light';
+}
 
 export function ThemeProvider({ children }) {
-  // TODO(TICKET-ADV124): lazy-init from localStorage('reconx-theme') — fall back
-  //                     to 'light' if nothing is stored.
-  const [theme /*, setTheme */] = useState('light');
+  const [theme, setTheme] = useState(getInitialTheme);
 
-  // TODO(TICKET-ADV124): useEffect that:
-  //                     1. sets document.documentElement.dataset.theme = theme
-  //                     2. persists `theme` to localStorage on every change.
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('reconx-theme', theme);
+  }, [theme]);
 
-  const toggle = () => {
-    // TODO(TICKET-ADV124): flip 'light' <-> 'dark' via setTheme(prev => ...).
-  };
+  function toggleTheme() {
+    setTheme((currentTheme) =>
+      currentTheme === 'dark' ? 'light' : 'dark',
+    );
+  }
+
+  const value = useMemo(
+    () => ({
+      theme,
+      toggleTheme,
+    }),
+    [theme],
+  );
 
   return (
-    <ThemeContext.Provider value={{ theme, toggle }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
 }
 
-export const useTheme = () => useContext(ThemeContext);
+export function useTheme() {
+  const context = useContext(ThemeContext);
+
+  if (!context) {
+    throw new Error('useTheme must be used inside <ThemeProvider>');
+  }
+
+  return context;
+}
+
+export default ThemeContext;
